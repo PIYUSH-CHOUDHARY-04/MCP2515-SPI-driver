@@ -16,7 +16,7 @@
         <th>Receives a CAN frame.</th>
     </tr>
     <tr>
-        <th>CAN_tx</th>
+        <th>CAN_tx()</th>
         <th>Transmits a CAN frame.</th>
     </tr>
         
