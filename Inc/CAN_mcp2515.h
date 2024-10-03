@@ -52,6 +52,7 @@ uint8_t CAN_rx(cant_t* frame);
  * @brief Check if their is a CAN frame,if yes then it copies it from RXBn to memory via SPI buffers.
  * @param cant_t* frame passes the pointer to the CAN frame into which frame will be copied.
  * @retval uint8_t is 0 for tx failure, is 1 for tx success.
+ */
 
 
 
