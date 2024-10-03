@@ -44,15 +44,16 @@ void CAN_init(void);
 /**
  * @brief Transmits the CAN frame 
  * @param can_t* frame passes the CAN frame loaded with CAN ID, DLC, Data.
- * @retval uint8_t is 0 for rx failure, is 1 for rx success.
- */
-uint8_t CAN_rx(cant_t* frame);
-
-/**
- * @brief Check if their is a CAN frame,if yes then it copies it from RXBn to memory via SPI buffers.
- * @param cant_t* frame passes the pointer to the CAN frame into which frame will be copied.
  * @retval uint8_t is 0 for tx failure, is 1 for tx success.
  */
+uint8_t CAN_tx(can_t* frame);
+
+/**
+ * @brief Check if their is a CAN frame, if yes then it copies it from RXBn to memory via SPI buffers.
+ * @param cant_t* frame passes the pointer to the CAN frame into which frame will be copied.
+ * @retval uint8_t is 0 for rx failure, is 1 for rx success.
+ */
+uint8_t CAN_tx(can_t* frame);
 
 
 
