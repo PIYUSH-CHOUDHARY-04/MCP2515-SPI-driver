@@ -1,4 +1,4 @@
-<h1>MCP2515 Standalone SPI CAN controller driver V 1.0</h1>
+<h1>MCP2515 Standalone SPI CAN controller driver v1.0</h1>
 <h3> This driver offers you a high level API for interacting with CAN controller as well as low level API for those who want more fine-grain control over the CAN controller. </h3>
 <h3> MCP2515 CAN API is partitioned into two parts : CAN IO API and CAN Config API</h3>
 
