@@ -96,6 +96,10 @@
         <th>CAN_GetBaudRate()</th>
         <th>Gets the current baud rate of the CAN communication</th>
     </tr>
+     <tr>
+        <th>CAN_TriggerRTS()</th>
+        <th>Triggers the RTS for specific TXBn</th>
+    </tr>
     
 </table>
 
