@@ -93,7 +93,7 @@
         <th>Sets a specific standard baud rate for CAN communication</th>
     </tr>
     <tr>
-        <th>CAN_GetBaudrate()</th>
+        <th>CAN_GetBaudRate()</th>
         <th>Gets the current baud rate of the CAN communication</th>
     </tr>
     
