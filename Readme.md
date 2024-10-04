@@ -25,7 +25,7 @@
 
 <table>
     <tr>
-        <th><h2>CAN Config API</h2></th>
+        <th><h2>CAN Config API Routines</h2></th>
         <th><h2>Use case</h2></th>
     </tr>
     <tr>
