@@ -45,7 +45,7 @@ void CAN_SoftReset(void);
  * @param uint8_t byte passes the 8 bit value to be stored in specific register.
  * @retval void
  */
-void CAN_WriteRegister(uint8_t* reg_addr, uint8_t byte);
+void CAN_WriteRegister(uint8_t* reg_addr, uint8_t* byte);
 
 /**
  * @brief Reads 8 bit value from a specific register.
@@ -61,12 +61,12 @@ void CAN_ReadRegister(uint8_t* reg_addr, uint8_t* byte);
  * 		- 0 for standard frame type
  *		- 1 for extended frame type
  * @param uint8_t* TXB passes the TX buffer address to which the user needs to write ( look at the Macros for buffer addresses in MCP2515.h )
- * @param uint8_t* can_id passes memory address of the CAN ID array, if Frame_type is 0 i.e. standard CAN frame, then this will write 2 bytes to MCP2515 ( one byte to TXnSIDH and one byte to TXnSIDL. )
+ * @param const uint8_t* can_id passes memory address of the CAN ID array, if Frame_type is 0 i.e. standard CAN frame, then this will write 2 bytes to MCP2515 ( one byte to TXnSIDH and one byte to TXnSIDL. )
  *			and if Frame_type is 1 i.e. extended CAN frame, then this will write 4 bytes to MCP2515 ( one byte to each TXnSIDH, TXnSIDL, TXnEID8, TXnEID0 ).
  *			The array in user program holding CAN ID should have CAN ID alligned in bytes as per the CAN protocol.
  * @retval void
  */
-void CAN_WriteID(uint8_t Frame_type, uint8_t* TXB, uint8_t* can_id);
+void CAN_WriteID(uint8_t Frame_type, uint8_t* TXB, const uint8_t* can_id);
 
 /**
  * @brief Reads CAN ID from one of the RX buffer and copies it into user buffer.
@@ -79,10 +79,10 @@ uint8_t CAN_ReadID(uint8_t* RXB, uint8_t* can_id);
 /**
  * @brief Writes to the DLC field of the CAN frame.
  * @param uint8_t* TXB passes the buffer address for TXn buffers.
- * @param uint8_t dlc passes the DLC value to be stored in DLC field of CAN frame.
+ * @param uint8_t* dlc passes the address of DLC to be stored in DLC field of CAN frame.
  * @retval void
  */
-void CAN_WriteDLC(uint8_t* TXB, uint8_t dlc);
+void CAN_WriteDLC(uint8_t* TXB, uint8_t* dlc);
 
 /**
  * @brief Reads the DLC registers and wire the DLC value into specific byte.
@@ -96,6 +96,7 @@ void CAN_ReadDLC(uint8_t* RXB, uint8_t* dlc);
  * @brief Write 'dlc' bytes of data from program memory to MCP2515 TXn buffers
  * @param uint8_t* TXB passes the address for the TXn buffers.
  * @param uint8_t* dlc passes the length of the data toe be sent to CAN controller ( lies between 0 to 8 bytes ).
+ * @param uint8_t dlc passes the number of bytes of data to be written to the Data field of the TXnB.
  * @retval void
  */
 void CAN_WriteData(uint8_t* TXB, uint8_t* data, uint8_t dlc);
