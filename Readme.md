@@ -50,30 +50,6 @@
         <th>Reads from the specific register of MCP2515</th>
     </tr>
     <tr>
-        <th>CAN_WriteID()</th>
-        <th>Writes the CAN ID of the frame to the MCP2515</th>
-    </tr>
-    <tr>
-        <th>CAN_ReadID()</th>
-        <th>Reads the CAN ID of a specific frame from MCP2515</th>
-    </tr>
-    <tr>
-        <th>CAN_WriteData()</th>
-        <th>Writes data field of CAN frame to the MCP2515</th>
-    </tr>
-    <tr>
-        <th>CAN_ReadData()</th>
-        <th>Reads the data field of a specific CAN frame from MCP2515</th>
-    </tr>
-    <tr>
-        <th>CAN_WriteDLC()</th>
-        <th>Write the DLC field of the CAN frame to MCP2515</th>
-    </tr>
-    <tr>
-        <th>CAN_ReadDLC()</th>
-        <th>Reads the DLC field of the CAN frame from MCP2515</th>
-    </tr>
-    <tr>
         <th>CAN_SetInterrupt()</th>
         <th>Sets specific interrupts ( remove pre-existing interrupts )</th>
     </tr>
