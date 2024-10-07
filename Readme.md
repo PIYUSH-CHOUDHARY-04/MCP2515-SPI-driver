@@ -50,6 +50,14 @@
         <th>Reads from the specific register of MCP2515</th>
     </tr>
     <tr>
+        <th>CAN_WriteFrame()</th>
+        <th>Writes the entire CAN frame to the specific TX buffer.</th>
+    </tr>
+    <tr>
+        <th>CAN_ReadFrame()</th>
+        <th>Reads the entire CAN frame from the MCP2515.</th>
+    </tr>
+    <tr>
         <th>CAN_SetInterrupt()</th>
         <th>Sets specific interrupts ( remove pre-existing interrupts )</th>
     </tr>
