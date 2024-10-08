@@ -65,7 +65,7 @@ void CAN_ReadRegister(uint8_t* reg_addr, uint8_t* byte){
  * @brief Writes the entire CAN frame to the specific TXB.
  * @param uint8_t* TXB passes the address of the specific TX buffer where we need to write the CAN frame.
  * @param can_t* can_frame passes the address of the frame (created by user program.)
- * @retval uint8_t tells whether the write operation is successful or not, on success returns 0 and on failure returns ETXBFULL.
+ * @retval uint8_t tells whether the write operation is successful or not, on success returns 0 and on failure returns ETXBFULL or EINVALARG.
  */
 uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 	/* First check whether the specified TXB is empty or not */
@@ -119,40 +119,61 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 	if(((((uint8_t*)&(can_frame->CAN_ID))[0]==0x00) & (((uint8_t*)&(can_frame->CAN_ID))[1]==0x00) & (((((uint8_t*)&(can_frame->CAN_ID))[2])&(0x07))==0x07) ){
 		
 		/* Reformating the can_frame->CAN_ID attribute to reflect the CAN_ID in the format expected by the MCP2515 to write correctly into its TX buffers */
-		(uint8_t*)&(can_frame->CAN_ID)[0]=(uint8_t*)&(can_frame->CAN_ID)[2];
-		(uint8_t*)&(can_frame->CAN_ID)[1]=(uint8_t*)&(can_frame->CAN_ID)[3];
+		((uint8_t*)&(can_frame->CAN_ID))[0]=((uint8_t*)&(can_frame->CAN_ID))[2];
+		((uint8_t*)&(can_frame->CAN_ID))[1]=((uint8_t*)&(can_frame->CAN_ID))[3];
 	
-		(uint8_t*)&(can_frame->CAN_ID)[0]=((uint8_t*)&(can_frame->CAN_ID)[0]<<5)&(0xE0);
-		(uint8_t*)&(can_frame->CAN_ID)[0]|=((uint8_t*)&(can_frame->CAN_ID)[1]>>3)&(0x1F);
+		((uint8_t*)&(can_frame->CAN_ID))[0]=(((uint8_t*)&(can_frame->CAN_ID))[0]<<5)&(0xE0);
+		((uint8_t*)&(can_frame->CAN_ID))[0]|=(((uint8_t*)&(can_frame->CAN_ID))[1]>>3)&(0x1F);
 	
-		(uint8_t*)&(can_frame->CAN_ID)[2]=0x00;
-		(uint8_t*)&(can_frame->CAN_ID)[3]=0x00;
+		((uint8_t*)&(can_frame->CAN_ID))[2]=0x00;
+		((uint8_t*)&(can_frame->CAN_ID))[3]=0x00;
 		
 		/* CAN Frame is ready for being transmitted to MCP2515. */
 	
 	}else{
 		/* Extended CAN frame. */
 		/* last 2 bytes of CAN_ID will remain same, now need to only adjust initial 2 bytes. */
-		(uint8_t*)&(can_frame->CAN_ID)[0]=((uint8_t*)&(can_frame->CAN_ID)[0]<<3)&(0xF8);
-		(uint8_t*)&(can_frame->CAN_ID)[0]|=((uint8_t*)&(can_frame->CAN_ID)[1]>>5)&(0x07);
-		(uint8_t*)&(can_frame->CAN_ID)[1]= (((uint8_t*)&(can_frame->CAN_ID)[1])&(0x03)) | ((uint8_t*)&(can_frame->CAN_ID)[1]<<3)&(0xE0);
+		((uint8_t*)&(can_frame->CAN_ID))[0]=(((uint8_t*)&(can_frame->CAN_ID))[0]<<3)&(0xF8);
+		((uint8_t*)&(can_frame->CAN_ID))[0]|=(((uint8_t*)&(can_frame->CAN_ID))[1]>>5)&(0x07);
+		((uint8_t*)&(can_frame->CAN_ID))[1]= ((((uint8_t*)&(can_frame->CAN_ID))[1])&(0x03)) | (((uint8_t*)&(can_frame->CAN_ID))[1]<<3)&(0xE0);
 
 		/* CAN Frame is ready for being transmitted to MCP2515. */
 	}
+
+	/* Ensuring all register for the specific TXB are all initialized to 0x00.  */
+
+	can_t temp={
+		.CAN_ID=0,
+		.dlc=0,
+		.data={0}
+	};
+
+	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET);
+	HAL_SPI_Transmit(&hspi1,&cmd,1,HAL_MAX_DELAY);
+	HAL_SPI_Transmit(&hspi1,(uint8_t*)(&temp),13,HAL_MAX_DELAY);
+	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
+	
 
 	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET);
 	HAL_SPI_Transmit(&hspi1,&cmd,1,HAL_MAX_DELAY);
 	HAL_SPI_Transmit(&hspi1,(uint8_t*)(&can_frame),5+(can_frame->dlc),HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
-	
-	
+
+	/* Now writing to the EXIDE bit of the TXBnSIDL register. */
+
+	register=0;
+	CAN_ReadRegister(TXB+2,&register);
+	register|=(0x08);	
+	CAN_WriteRegister(TXB+2,&register);
+
+	return 0;
 }
 
 /**
  * @brief Reads the entire CAN frame from the CAN controller into a specified program buffer.
  * @param uint8_t* passes the address of the specific RX buffer from where we need to copy the CAN frame.
  * @param can_t* can_frame passes the address of the CAN frame structure in the program memory where the CAN frame will be copied.
- * @retval uint8_t tell whether the read operation is successful or not, on success returns 0 and on failure returns ERXBEMPTY.
+ * @retval uint8_t tell whether the read operation is successful or not, on success returns 0 for standard frame and 1 for extended frame, and on failure returns ERXBEMPTY.
  */
 uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
 
@@ -168,14 +189,38 @@ uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
 			return ERXBEMPTY;
 		}
 		cmd=READ_RX0_IR;
+		/* Clearing RXB0CTRL register. */
+		register=0;
+		CAN_ReadRegister(RXB,&register);
+		register&=(0xFE);
+		CAN_WriteRegister(RXB,&register);
+
+
 	}else if(RXB==RX1){
 		if(register&(0x02)==0){
 			return ERXBEMPTY;
 		}
 		cmd=READ_RX1_IR;
+		/* Clearing RXB1CTRL register */
+		register=0;
+		CAN_ReadRegister(RXB,&register);
+		register&=(0xF8);
+		CAN_WriteRegister(RXB,&register);
 	}else{
 		return EINVALARG;
 	}
+
+	
+
+	/* Let's get the DLC field for the specific RX buffer in order to know how many bytes of data needed to be copied to program buffer. */
+	uint8_t dlc=0;
+	CAN_ReadRegister(RXB+5,&dlc);
+
+	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET);
+	HAL_SPI_Transmit(&hspi1,&cmd,1,HAL_MAX_DELAY)
+	HAL_SPI_Receive(&hspi1,(uint8_t*)(&can_frame),dlc,HAL_MAX_DELAY);
+	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
+
 
 	/* Getting the IDE bit of the SIDL register to know whether the frame is extended or standard. */
 
@@ -184,52 +229,115 @@ uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
 	
 	if((register&(0x08))==0){
 		/* Frame is standard. */
+		/* RXBnEID0 and RXBnEID8 registers will be empty.*/	
+			
+		((uint8_t*)&(can_frame->CAN_ID))[3]=(((uint8_t*)&(can_frame->CAN_ID))[1]>>5)&(0x07);
+		((uint8_t*)&(can_frame->CAN_ID))[3]|=(((uint8_t*)&(can_frame->CAN_ID))[0]<<3)&(0xF8);
+		((uint8_t*)&(can_frame->CAN_ID))[2]=(((uint8_t*)&(can_frame->CAN_ID))[0]>>5)&(0x07);
+
+		((uint8_t*)&(can_frame->CAN_ID))[0]=0;
+		((uint8_t*)&(can_frame->CAN_ID))[1]=0;
+
+		return 0;
 		
 
 	}else{
 		/* Frame is extended. */
-
-	
+		/* RXBnEID0 and RXBnEID8 will contain 16 bits of extended identifier (EID) */
+		
+		((uint8_t*)&(can_frame->CAN_ID))[1]&=(0xE3);
+		((uint8_t*)&(can_frame->CAN_ID))[1]= ( ((((uint8_t*)&(can_frame->CAN_ID))[1])&(0x03)) | ((((uint8_t*)&(can_frame->CAN_ID))[1]>>3)&(0x1F)) | ((((uint8_t*)&(can_frame->CAN_ID))[0]<<5)&(0xE0)) );
+		((uint8_t*)&(can_frame->CAN_ID))[0]= (((uint8_t*)&(can_frame->CAN_ID))[0]>>2)&(0x07);
+		
+		return 1;
 	}
 	
-
-
 }
 
 /**
  * @brief Switches the operational mode of the MCP2515 CAN controller.
  * @param uint8_t mode passes the identifier of the mode to which the CAN controller must switch to.
- * @retval void
+ * @paran uint8_t CLKOUT passes the info about altering CLKOUT pin state on mode change.
+ * 	- 0 means lower the CLKOUT bit in CANCTRL register for disabling CLKOUT pin in new mode. 
+ *	- 1 means don't lower the CLKOUT bit in CANCTRL register to ensure continuous functioning of CLKOUT pin.
+ * @retval uint8_t tells whether the mode has been changed or not, returns 0 on success and 1 on failure (failure may happen due to the MCP2515 being already in request mode).
  */
-void CAN_SwitchMode(uint8_t mode);
+uint8_t CAN_SwitchMode(uint8_t mode, uint8_t CLKOUT){
+
+	uint8_t register=0;
+
+	
+	CAN_ReadRegister(_CANCTRL,&register);
+	if((register&(0xE0))==((mode<<5)&(0xE0))){
+		/* controller already in requested mode. */
+		return 1;
+	}
+
+	/* Preparing for mode switch, aborting all transmitting frames, clearing RXBs , disabling interrupts.*/
+	if(CLKOUT==0){
+		register&=(0xE3); /* disabling OSM and aborting all transmissions, CLKOUT is disabled */
+	}else if(CLKOUT==1){
+		register&=(0xE7); /* disabling OSM and aborting all transmissions, CLKOUT not disabled */
+	}else{	
+		return EINVALARG;
+	}
+	
+	CAN_WriteRegister(_CANCTRL,&register); /* writing transmission abort, CKKOUT and OSM changes to CAN controller  */
+
+	register=0x00;
+	CAN_WriteRegister(_CANINTE,&register); /* disabling all interrupts. */
+	CAN_WriteRegister(_CANINTF,&register); /* Clearing previous interrupt flags. */
+	
+	CAN_ReadRegister(_CANCTRL,&register);
+	register&=(0x1F);
+	register|=((mode<<5)&(E0));
+	CAN_WriteRegister(_CANCTRL,&register);
+
+	return 0;
+
+}
 
 /**
  * @brief Clears all the previously enabled interrupt and only enables the specific interrupt which is passed to it as its argument.
  * @param uint8_t interrupt passes the interrupt value which is set into CANINTE register of MCP2515.
  * @retval void.
  */
-void CAN_SetInterrupt(uint8_t interrupt);
+void CAN_SetInterrupt(uint8_t interrupt){
+	uint8_t intr=interrupt;
+	CAN_WriteRegister(_CANINTE,&intr);
+}
 
 /**
  * @brief Reads the CANINTE register and tells about the interrupts which are enable at that time.
  * @param uint8_t* interrupt passes the address of a byte where the CANINTE register will be copied for examination.
  * @retval void 
  */
-void CAN_GetInterrupt(uint8_t* interrupt);
+void CAN_GetInterrupt(uint8_t* interrupt){
+	CAN_ReadRegister(_CANINTE,interrupt);
+}
 
 /**
  * @brief Enables specific interrupt, won't touch the previously enabled interrupts.
- * @param uint8_t interrupt
+ * @param uint8_t interrupt passes the specific interrupt macro from the INTERRUPT_MACROS.
  * @retval void
  */
-void CAN_EnableInterrupt(uint8_t interrupt);
+void CAN_EnableInterrupt(uint8_t interrupt){
+	uint8_t intr=0;
+	CAN_GetInterrupt(&intr);
+	intr|=interrupt;	
+}
 
 /**
  * @brief Disables specific interrupt, won't touch the previously disabled interrupts.
  * @param uint8_t interrupt
  * @retval void
  */
-void CAN_DisableInterrupt(uint8_t interrupt);
+void CAN_DisableInterrupt(uint8_t interrupt){
+	uint8_t intr=0;
+	CAN_GetInterrupt(&intr);
+	intr|=(~interrupt);
+
+}
 
 /**
  * @brief Sets specific baud rate for the subsequent communication over the CAN bus.
@@ -246,41 +354,114 @@ void CAN_SetBaudRate(uint32_t baudrate);
 void CAN_GetBaudRate(uint32_t* baudrate);
 
 /**
- * @brief Trigger request to transmit a CAN frame from a specific TXB.
+ * @brief Trigger request to transmit a CAN frame from a specific TXB over SPI.
  * @param uint8_t* TXB passes memory address of the TXn buffer corresponding to which RTS need to be triggered.
- * @retval uint8_t tells whether the TXnB contains CAN frame and can be transmitted or the specified TXnB is empty thus can't trigger RTS for that specified TXnB
- * 		- 0 if TXnB is empty.
- *		- 1 if TXnB is not empty and RTS has been triggered.
+ * @retval uint8_t tells whether the TXBn contains CAN frame undergoing transmissionn or the specified TXBn is empty.
+ * 		- 0 if TXBn is not under any ongoing transmission.
+ *		- ERXBFULL if TXBn is undergoing a transmission, thus can't trigger RTS for that specific TXB.
+ *		- EINVALARG if invalid buffer address is passed.
  */
-uint8_t CAN_TriggerRTS(uint8_t* TXB);
+uint8_t CAN_TriggerRTS_SPI(uint8_t* TXB){
+
+	if(((TXB!=TX0)&(TXB!=TX1)&(TXB!=TX2))==1){
+		return EINVALARG;
+	}
+	/* First check whether the specified TXB is already in transmission or not. */
+	uint8_t register;
+	CAN_ReadRegister(TXB,&register);
+	if((register&(0x08))==1){
+		/* ongoing transmission, TXREQ bit already set in TXBnCTRL register. */
+		return ERXBFULL;
+	}
+	register|=(0x08);
+	CAN_WriteRegister(TXB,&register);
+	return 0;
+	
+}
+
+/**
+ * @brief Trigger request to transmit a CAN frame from a specific TXB via TXnRTS pin, falling edge when detected on TXnRTS pins is responsible for triggering RTS for specific TXB.
+ * @param uint8_t* TXB passes memory address of the TXn buffer corresponding to which RTS need to be triggered.
+ * @retval uint8_t tells whether the TXBn contains CAN frame undergoing transmission or the specified TXBn is empty.
+ * 		- 0 if TXBn is not under any ongoing transmission.
+ *		- ERXBFULL if TXBn is undergoing a transmission, thus can't trigger RTS for that specific TXB.
+ *		- EINVALARG if the specified buffer address is invalid.
+ */
+uint8_t CAN_TriggerRTS_PIN(uint8_t* TXB){
+	/* First check whether the specified TXB is already in transmission or not. */
+	uint8_t register;
+	CAN_ReadRegister(TXB,&register);
+	if((register&(0x08))==1){
+		/* ongoing transmission, TXREQ bit already set in TXBnCTRL register. */
+		return ERXBFULL;
+	}
+	
+	if(TXB==TX0){
+		HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(nTX0RTS_PORT,nTX0RTS_PIN,GPIO_PIN_RESET);
+		HAL_Delay(1);
+		HAL_GPIO_WritePin(nTX0RTS_PORT,nTX0RTS_PIN,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
+	}else if(TXB==TX1){
+		HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(nTX1RTS_PORT,nTX0RTS_PIN,GPIO_PIN_RESET);
+		HAL_Delay(1);
+		HAL_GPIO_WritePin(nTX1RTS_PORT,nTX0RTS_PIN,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
+		
+	}else if(TXB==TX2){
+		HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(nTX2RTS_PORT,nTX0RTS_PIN,GPIO_PIN_RESET);
+		HAL_Delay(1);
+		HAL_GPIO_WritePin(nTX2RTS_PORT,nTX0RTS_PIN,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
+
+	}else{
+		return EINVALARG;
+	}
+
+}
 
 /**
  * @brief Immediately aborts the transmission for the specific TX buffer.
  * @param uint8_t* TXB will pass the address of the specific TXB whose transmission is supposed to be aborted.
  * @retval void
  */
-void CAN_AbortTX(uint8_t* TXB);
+void CAN_AbortTX(uint8_t* TXB){
+	uint8_t register=0;
+	CAN_ReadRegister(TXB,&register);
+	register|=(0x40);
+	CAN_WriteRegister(TXB,&register);
+	
+}
 
 /**
- * @brief Immediately aborts the trasnmission of all TXBs, generally used during mode switch.
+ * @brief Immediately aborts the transmission of all TXBs, generally used during mode switch.
  * @param void
  * @retval void
  */
-void CAN_AbortAllTX(void);
+void CAN_AbortAllTX(void){
+	uint8_t register=0;
+	CAN_ReadRegister(_CANCTRL,&register);
+	register|=(0x10);
+	CAN_WriteRegister(_CANCTRL,&register);
+}
 
 /**
- * @brief Activates the CLKOUT pin of MCP2515 i.e. Pin 3.
+ * @brief Gets the information whether CLKOUT pin is configured or not.
  * @param void
- * @retval void
+ * @retval uint8_t tells whether the CLKOUT pin is enabled or not.
+ * 	- 0 means enabled.
+ *	- 1 means disabled.
  */
-void EnableClkOut(void);
+uint8_t CAN_GetClkOut(void);
 
 /**
- * @brief Disables the CLKOUT pin.
- * @param void
+ * @brief Enable or disable the CLKOUT pin of MCP2515.
+ * @param uint8_t clkout_mode passes the CLKOUT mode i.e. whether to disable or enable the CLKOUT pin.
  * @retval void
  */
-void Disable ClkOut(void);
+void CAN_SetClkOut(uint8_t clkout_mode);
 
 /**
  * @brief Sets the clock frequency for external devices on pin 3 of MCP2515.
@@ -291,7 +472,7 @@ void Disable ClkOut(void);
  * 	- 3 : CLKOUT_freq = OSC_freq/8
  * @retval void
  */
-void SetClkOutFreq(uint8_t prescalar);
+void CAN_SetClkOutFreq(uint8_t prescalar);
 
 /**
  * @brief Transmits specified frame if TXB is not empty.
@@ -314,8 +495,18 @@ void CAN_EnableOSM(void);
 void CAN_DisableOSM(void);
 
 /**
- * @brief Changes the priority of a specific TX to a specific value.
+ * @brief Changes the priority of a specific TX to a specific value (TXB with most priority will be given the CAN bus first for transmission).
  * @param uint8_t* TXB passes the address of the TXB whose priority has to be changed.
  * @param uint8_t Priority passes the priority value for the TXB.
  * @retval void
-void ChangeTXPriority(uint8_t* TXB, uint8_t Priority);
+void CAN_ChangeTXPriority(uint8_t* TXB, uint8_t Priority);
+
+/**
+ * @brief Sets the filtering mode, i.e. whether to turn on or off filtering for specific RXB.
+ * @param uint8_t* RXB passes the address of the RXB for which filtering has to be enabled or disabled.
+ * @param uint8_t RXB_mode passes the mode value.
+ * 	- 0x00 : disables filtering i.e. all frames with both SID and EID will be received in the specific RXB.
+ *	- 0x03 : Enables filtering i.e. frame's whose CAN ID satisfies specific requirement will be received into that specific buffer.
+ * @retval void 
+ */
+void CAN_SetRXBMode(uint8_t* RXB, uint8_t RXB_mode);
