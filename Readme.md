@@ -88,45 +88,32 @@ l<h1>MCP2515 Standalone SPI CAN controller driver v1.0</h1>
     <tr>
          <th>CAN_AbortTX()</th>
          <th>Aborts an ongoing transmission for a specific TX buffer</th>
-
     </tr>
-
     <tr>
          <th>CAN_AbortAllTX()</th>
          <th>Aborts all ongoing transmission for each TX buffer</th>
-
     </tr>
-
     <tr>
          <th>CAN_EnableClkOut()</th>
          <th>Enables the CLKOUT pin of the MCP2515 CAN controller</th>
-
     </tr>
-    
-
      <tr>
          <th>CAN_DisableClkOut()</th>
          <th>Disables the CLKOUT pin of the MCP2515 CAN controller</th>
-
     </tr>
-      
      <tr>
          <th>CAN_SetClkOutFreq()</th>
          <th>Sets the clock frequency for CLKOUT pin of the MCP2515 CAN controller</th>
-
     </tr>
      <tr>
          <th>CAN_EnableOSM()</th>
          <th>Enables the One Shot Mode (OSM) for all TX buffers</th>
-
     </tr>
-
      <tr>
          <th>CAN_DisableOSM()</th>
          <th>Disables the One Shot Mode (OSM) for all TX buffers</th>
-
     </tr>
-    
+
 
 </table>
 
