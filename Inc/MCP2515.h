@@ -267,10 +267,6 @@
  */
 
 
-#define STANDARD_FRAME 0x00 /*!< macro for standard frame */
-#define EXTENDED_FRAME 0x01 /*!< macro for extended frame */
-
-
 #define TXPriority_1 0x03 /*!< Highest transmit priority for specific TX buffer. */
 #define TXPriority_2 0x02 /*!< Intermediate High transmit priority for specific TX buffer. */
 #define TXPriority_3 0x01 /*!< Intermediate Low transmit priority for specific TX buffer. */
