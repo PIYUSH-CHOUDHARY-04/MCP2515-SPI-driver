@@ -197,15 +197,18 @@
  * @{
  */
 
-#define NORMAL_MODE 		0x000
-#define SLEEP_MODE  		0x001
-#define LOOPBACK_MODE		0x010
-#define LISTEN_ONLY_MODE	0x011
-#define CONFIGURATION_MODE	0x100
+#define NORMAL_MODE 		0x00
+#define SLEEP_MODE  		0x01
+#define LOOPBACK_MODE		0x02
+#define LISTEN_ONLY_MODE	0x03
+#define CONFIGURATION_MODE	0x04
 
 /**
  * @}
  */
+
+#define RXB_FILTER_ON	0x00	/*!< Enables filtering of frames for specific RX buffer.  */
+#define RXB_FILTER_OFF	0x03	/*!< Disables filtering of frames for specific RX buffer. */
 
 
 /**
@@ -272,6 +275,16 @@
 #define TXPriority_2 0x02 /*!< Intermediate High transmit priority for specific TX buffer. */
 #define TXPriority_3 0x01 /*!< Intermediate Low transmit priority for specific TX buffer. */
 #define TXPriority_4 0x00 /*!< Lowest transmit priority for specific TX buffer. */
+
+
+
+/**
+ * @brief Macros for configuring TXnRTS pins of MCP2515.
+ */
+
+#define EN_RTS0 0x01 */!< Enables RTS pin for TXB0 */
+#define EN_RTS1 0x02 */!< Enables RTS pin for TXB1 */
+#define EN_RTS2 0x04 */!< Enables RTS pin for TXB2 */
 
 
 /**

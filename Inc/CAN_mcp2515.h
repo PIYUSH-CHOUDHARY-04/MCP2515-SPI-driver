@@ -133,13 +133,22 @@ void CAN_SetBaudRate(uint32_t baudrate);
 void CAN_GetBaudRate(uint32_t* baudrate);
 
 /**
- * @brief Trigger request to transmit a CAN frame from a specific TXB.
+ * @brief Trigger request to transmit a CAN frame from a specific TXB over SPI.
  * @param uint8_t* TXB passes memory address of the TXn buffer corresponding to which RTS need to be triggered.
- * @retval uint8_t tells whether the TXnB contains CAN frame and can be transmitted or the specified TXnB is empty thus can't trigger RTS for that specified TXnB
- * 		- 0 if TXnB is empty.
- *		- 1 if TXnB is not empty and RTS has been triggered.
+ * @retval uint8_t tells whether the TXnB contains CAN frame and can be transmitted or the specified TXBn is empty thus can't trigger RTS for that specified TXBn
+ * 		- 0 if TXBn is empty.
+ *		- 1 if TXBn is not empty and RTS has been triggered.
  */
-uint8_t CAN_TriggerRTS(uint8_t* TXB);
+uint8_t CAN_TriggerRTS_SPI(uint8_t* TXB);
+
+/**
+ * @brief Trigger request to transmit a CAN frame from a specific TXB via TXnRTS pin.
+ * @param uint8_t* TXB passes memory address of the TXn buffer corresponding to which RTS need to be triggered.
+ * @retval uint8_t tells whether the TXnB contains CAN frame and can be transmitted or the specified TXBn is empty thus can't trigger RTS for that specified TXBn
+ * 		- 0 if TXBn is empty.
+ *		- 1 if TXBn is not empty and RTS has been triggered.
+ */
+uint8_t CAN_TriggerRTS_PIN(uint8_t* TXB);
 
 /**
  * @brief Immediately aborts the transmission for the specific TX buffer.
@@ -158,16 +167,18 @@ void CAN_AbortAllTX(void);
 /**
  * @brief Activates the CLKOUT pin of MCP2515 i.e. Pin 3.
  * @param void
- * @retval void
+ * @retval uint8_t tells whether the CLKOUT pin is enabled or not.
+ * 	- 0 means enabled.
+ *	- 1 means disabled.
  */
-void EnableClkOut(void);
+uint8_t CAN_GetClkOut(void);
 
 /**
- * @brief Disables the CLKOUT pin.
- * @param void
+ * @brief Enable or disable the CLKOUT pin of MCP2515.
+ * @param uint8_t clkout_mode passes the CLKOUT mode i.e. whether to disable or enable the CLKOUT pin.
  * @retval void
  */
-void Disable ClkOut(void);
+void CAN_SetClkOut(uint8_t clkout_mode);
 
 /**
  * @brief Sets the clock frequency for external devices on pin 3 of MCP2515.
@@ -178,13 +189,20 @@ void Disable ClkOut(void);
  * 	- 3 : CLKOUT_freq = OSC_freq/8
  * @retval void
  */
-void SetClkOutFreq(uint8_t prescalar);
+void CAN_SetClkOutFreq(uint8_t prescalar);
 
 /**
  * @brief Transmits specified frame if TXB is not empty.
  * @param uint8_t* TXB passes the address of the TXB whose frame is attempted to be transmitted.
  * @retval uint8_t tells whether the transmission is successful or failed, returns 0 on success, returns ETXBFULL on failure.
 uint8_t CAN_Transmit(uint8_t* TXB);
+
+/**
+ * @brief Marks the specified RX buffer as read i.e. new frame cane be received into that specific RX buffer.
+ * @param uint8_t* passes the address of the RX buffer which has to be marked as read.
+ * @retval void
+ */
+void CAN_MarkRead(uint8_t* RXB);
 
 /**
  * @brief Enables One shot mode for transmission.
@@ -201,11 +219,30 @@ void CAN_EnableOSM(void);
 void CAN_DisableOSM(void);
 
 /**
- * @brief Changes the priority of a specific TX to a specific value.
+ * @brief Changes the priority of a specific TX to a specific value (TXB with most priority will be given the CAN bus first for transmission).
  * @param uint8_t* TXB passes the address of the TXB whose priority has to be changed.
  * @param uint8_t Priority passes the priority value for the TXB.
  * @retval void
-void ChangeTXPriority(uint8_t* TXB, uint8_t Priority);
+void CAN_ChangeTXPriority(uint8_t* TXB, uint8_t Priority);
+
+/**
+ * @brief Sets the filtering mode, i.e. whether to turn on or off filtering for specific RXB.
+ * @param uint8_t* RXB passes the address of the RXB for which filtering has to be enabled or disabled.
+ * @param uint8_t RXB_mode passes the mode value.
+ * 	- 0x00 : disables filtering i.e. all frames with both SID and EID will be received in the specific RXB.
+ *	- 0x03 : Enables filtering i.e. frame's whose CAN ID satisfies specific requirement will be received into that specific buffer.
+ * @retval void 
+ */
+void CAN_SetRXBMode(uint8_t* RXB, uint8_t RXB_mode);
+
+/**
+ * @brief Configure TXnRTS pins of the specific TXB.
+void CAN_ConfigTXnRTS();
+
+
+/**
+ * @brief Configure RXnBF pins of the specific RXB.
+void CAN_ConfigRXnBF();
 
 
 
