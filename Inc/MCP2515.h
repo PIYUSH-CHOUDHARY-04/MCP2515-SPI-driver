@@ -278,9 +278,9 @@
  * @brief common error codes for debugging.
  */
 
-#define ETXBFULL 	0x010  		/* Error occured when a Write operation to registers of certain TXBn fails due to all TXB being full, this happens when the transmission is in process. */
-#define ERXBEMPTY	0x011		/* Error occured when a read operation to registers of certain RXBn fails due to all RXB being empty. */
-
+#define ETXBFULL 	0x0A  		/* Error occured when a Write operation to registers of certain TXBn fails due to all TXB being full, this happens when the transmission is in process. */
+#define ERXBEMPTY	0x0B		/* Error occured when a read operation to registers of certain RXBn fails due to all RXB being empty. */
+#define EINVALARG	0x0C
 
 
 #endif /* MCP2515_H */
