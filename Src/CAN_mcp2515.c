@@ -94,9 +94,11 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 	}else if(TXB==TX1){
 		register&=(0xF7);
 		cmd=LOAD_TX1_IR;
-	}else{
+	}else if(TXB==TX2){
 		register&=(0xEF);
 		cmd=LOAD_TX2_IR;
+	}else{
+		return EINVALARG;
 	}
 
 	CAN_WriteRegister(_CANINTF,&register);
@@ -155,7 +157,41 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
 
 	/* first need to check whether the specific RX buffer has some frame or not. */
+	uint8_t cmd=0;
+	uint8_t register=0;
+	CAN_ReadRegister(_CANINTF,&register);
+	
+	
+	if(RXB==RX0){
+		if(register&(0x01)==0){
+		/* No Frame is received into the specified RX buffer. */
+			return ERXBEMPTY;
+		}
+		cmd=READ_RX0_IR;
+	}else if(RXB==RX1){
+		if(register&(0x02)==0){
+			return ERXBEMPTY;
+		}
+		cmd=READ_RX1_IR;
+	}else{
+		return EINVALARG;
+	}
 
+	/* Getting the IDE bit of the SIDL register to know whether the frame is extended or standard. */
+
+	register=0;
+	CAN_ReadRegister(RXB0SIDL,&register);
+	
+	if((register&(0x08))==0){
+		/* Frame is standard. */
+		
+
+	}else{
+		/* Frame is extended. */
+
+	
+	}
+	
 
 
 }
