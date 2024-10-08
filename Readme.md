@@ -113,6 +113,10 @@
          <th>CAN_DisableOSM()</th>
          <th>Disables the One Shot Mode (OSM) for all TX buffers</th>
     </tr>
+    <tr>
+        <th>CAN_ChangeTXPriority()</th>
+        <th>Changes the transmission priority of each TX buffer</th>
+    </tr>
 
 
 </table>
