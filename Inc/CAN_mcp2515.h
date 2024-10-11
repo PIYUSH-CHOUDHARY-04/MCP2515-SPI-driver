@@ -36,6 +36,41 @@ typedef struct{
 	uint8_t data[8];
 } can_t ;
 
+
+/**
+ * @brief mode switch structure is used during switiching mode from one to another operational mode.
+ * @param uint8_t Switch2Mode will hold the CONFIG_MODE macros.
+ * @param uint8_t clkout will tell whether to enable or disable the clkout pin in new mode irrespective of what it is in current mode. it have some possible values listed below. 
+ * 		- 0x00 for disabling the the CLKOUT pin in new mode.
+ *		- 0x04 for enabling the CLKOUT pin at (OSC freq)
+ *		- 0x05 for enabling the CLKOUT pin at (OSC freq)/2
+ *		- 0x06 for enabling the CLKOUT pin at (OSC freq)/4
+ *		- 0x07 for enabling the CLKOUT pin at (OSC freq)/8
+ * @param uint8_t txnrts will tell whether to enable or disable a specific TXnRTS pin of MCP2515 in new mode or not irrespective of what their states are in current mode.
+ *		- 0x00 for disabling all TXnRTS pins in new mode.
+ *		- 0x01 for enabling the TX0RTS pin , disabling the remaining two.
+ * 		- 0x02 for enabling the TX1RTS pin , disabling the remaining two.
+ *		- 0x03 for enabling both TX0RTS and TX1RTS , disabling the remaining one.
+ *		- 0x04 for enabling the TX2RTS pin , disabling the remaining two.
+ *		- 0x05 for enabling both TX0RTS and TX2RTS , disabling the remaining one.
+ *		- 0x06 for enabling both TX1RTS and TX2RTS , disabling the remaining one.
+ *		- 0x07 for enabling all TXnRTS pins. 
+ *		ORing can be done to enable or disable mulitple TXnRTS pins in new mode.
+ * @param uint8_t rxnbf will tell whether to enable or disable a specific RXnBF pin of MCP2515 in new mode or not irrespective of what their states are in current mode.
+ *		- 0x12 for disabling both RXnBF pins in new mode (pin function is enabled for default thus programmer can choose to use it as digital input pin or for RTS.)
+ *		- 0x13 for enabling RX0BF, disabling RX1BF.
+ *		- 0x14 for enabling RX1BF, disabling RX0BF.
+ *		- 0x15 for enabling both RXnBF pins.
+ */
+typedef struct {
+	uint8_t Switch2Mode;
+	uint8_t clkout;
+	uint8_t txnrts;
+	uint8_t rxnbf;
+} mode_switch ;
+
+
+
 /*====================================================================<<Config APIs>>==============================================================*/
 
 /**
@@ -165,11 +200,11 @@ void CAN_AbortTX(uint8_t* TXB);
 void CAN_AbortAllTX(void);
 
 /**
- * @brief Activates the CLKOUT pin of MCP2515 i.e. Pin 3.
+ * @brief Gets the information whether CLKOUT pin is configured or not by reading the _CANCTRL register.
  * @param void
  * @retval uint8_t tells whether the CLKOUT pin is enabled or not.
- * 	- 0 means enabled.
- *	- 1 means disabled.
+ * 	- 1 means enabled.
+ *	- 0 means disabled.
  */
 uint8_t CAN_GetClkOut(void);
 
@@ -229,20 +264,50 @@ void CAN_ChangeTXPriority(uint8_t* TXB, uint8_t Priority);
  * @brief Sets the filtering mode, i.e. whether to turn on or off filtering for specific RXB.
  * @param uint8_t* RXB passes the address of the RXB for which filtering has to be enabled or disabled.
  * @param uint8_t RXB_mode passes the mode value.
- * 	- 0x00 : disables filtering i.e. all frames with both SID and EID will be received in the specific RXB.
+ * 	- 0x00 : Disables filtering i.e. all frames with both SID and EID will be received in the specific RXB.
  *	- 0x03 : Enables filtering i.e. frame's whose CAN ID satisfies specific requirement will be received into that specific buffer.
  * @retval void 
  */
 void CAN_SetRXBMode(uint8_t* RXB, uint8_t RXB_mode);
 
 /**
- * @brief Configure TXnRTS pins of the specific TXB.
-void CAN_ConfigTXnRTS();
-
+ * @brief Configure TXnRTS pins of the specific TXB by writing to _TXRTSCTRL register.
+ * @param uint8_t rts_pin_index.
+ *	- 0x00 : to disable RTS for each TXn
+ * 	- 0x01 : to enable RTS for TX0
+ *	- 0x02 : to enable RTS for TX1
+ *	- 0x04 : to enable RTS for TX2
+ * @retval void
+ */
+void CAN_ConfigTXnRTS(uint8_t rts_pin_index);
 
 /**
  * @brief Configure RXnBF pins of the specific RXB.
-void CAN_ConfigRXnBF();
+ * @param uint8_t bfp_pin_index.
+ *	- 0x00 : to disbale both RXnBF pins.
+ *	- 0x05 : to enable RX0BF
+ *	- 0x0A : to enable RX1BF
+ * @retval void
+ */
+void CAN_ConfigRXnBF(uint8_t bfp_pin_index);
+
+/**
+ * @brief Disables the RX1 buffer frm receiving CAN frames, thus only RX0 will receive the CAN frame, if RX0 is full, the received CAN frame will be discarded.
+ * @param void
+ * @retval void
+ */
+
+
+void CAN_DisableRX1(void);
+
+/**
+ * @brief Enables the RX1 buffer frm receiving CAN frames, thus only RX0 will receive the CAN frame, if RX0 is full, the received CAN frame will be discarded.
+ * @param void
+ * @retval void
+ */
+
+void CAN_EnableRX1(void);
+
 
 
 

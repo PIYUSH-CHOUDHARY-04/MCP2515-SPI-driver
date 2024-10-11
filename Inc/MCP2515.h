@@ -287,6 +287,8 @@
 #define EN_RTS2 0x04 */!< Enables RTS pin for TXB2 */
 
 
+
+
 /**
  * @brief common error codes for debugging.
  */
