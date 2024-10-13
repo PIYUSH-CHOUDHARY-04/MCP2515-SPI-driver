@@ -13,8 +13,8 @@
         <th><h2>Use case</h2></th>
     </tr>
     <tr>
-        <th><p>CAN_init()</p></th>
-        <th><p>Initializes MCP2515 CAN controller in default state.</p></th>
+        <th>CAN_init()</th>
+        <th>Initializes MCP2515 CAN controller in default state.</th>
     </tr>
     <tr>
         <th>CAN_rx()</th>
