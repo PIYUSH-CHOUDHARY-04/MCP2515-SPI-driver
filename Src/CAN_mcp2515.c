@@ -81,7 +81,7 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 		return ETXBFULL;
 	}
 	
-	register=0x02; /* Higher intermediate TX priority. */
+	register&=(0x02); /* keeping TXB priority as it is. */
 
 	/* Since TXREQ bit is clear, we can write new frame to that TXB, now one need to clear TXBnCTRL and CANINTF register's bits.  */
 	
@@ -130,6 +130,9 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 		((uint8_t*)&(can_frame->CAN_ID))[2]=0x00;
 		((uint8_t*)&(can_frame->CAN_ID))[3]=0x00;
 		
+		/* Adding EXIDE bit. */
+		((uint8_t*)&(can_frame->CAN_ID))[1]&=(0xF7);
+		
 		/* CAN Frame is ready for being transmitted to MCP2515. */
 	
 	}else{
@@ -138,6 +141,9 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 		((uint8_t*)&(can_frame->CAN_ID))[0]=(((uint8_t*)&(can_frame->CAN_ID))[0]<<3)&(0xF8);
 		((uint8_t*)&(can_frame->CAN_ID))[0]|=(((uint8_t*)&(can_frame->CAN_ID))[1]>>5)&(0x07);
 		((uint8_t*)&(can_frame->CAN_ID))[1]= ((((uint8_t*)&(can_frame->CAN_ID))[1])&(0x03)) | (((uint8_t*)&(can_frame->CAN_ID))[1]<<3)&(0xE0);
+			
+		/* Adding EXIDE bit. */
+		((uint8_t*)&(can_frame->CAN_ID))[1]|=(0x08);
 
 		/* CAN Frame is ready for being transmitted to MCP2515. */
 	}
@@ -161,12 +167,7 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 	HAL_SPI_Transmit(&hspi1,(uint8_t*)(&can_frame),5+(can_frame->dlc),HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
 
-	/* Now writing to the EXIDE bit of the TXBnSIDL register. */
-
-	register=0;
-	CAN_ReadRegister(TXB+2,&register);
-	register|=(0x08);	
-	CAN_WriteRegister(TXB+2,&register);
+	
 
 	return 0;
 }
@@ -257,12 +258,8 @@ uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
 }
 
 /**
- * @brief Switches the operational mode of the MCP2515 CAN controller with fine grain control over the TXnRTS, RXnBF and CLKOUT pins.
- *	  Switches into new mode with CLKOUT, TXnRTS, RXnBF pins active or not.
- * @param uint8_t mode passes the identifier of the mode to which the CAN controller must switch to.
- * @param uint8_t CLKOUT passes the info about altering CLKOUT pin state on mode change.
- * 	- 0x00 means lower the CLKOUT bit in CANCTRL register for disabling CLKOUT pin in new mode. 
- *	- 0x04 means don't lower the CLKOUT bit in CANCTRL register to ensure continuous functioning of CLKOUT pin.
+ * @brief Switches the operational mode of the MCP2515 CAN controller.
+ * @param mode_switch* switch_info passes the address of the mode_switch structure which contains all details about mode change.
  * @retval uint8_t tells whether the mode has been changed or not, returns 0 on success and 1 on failure (failure may happen due to the MCP2515 being already in request mode).
  */
 uint8_t CAN_SwitchMode(mode_switch* switch_info){
@@ -341,7 +338,8 @@ void CAN_GetInterrupt(uint8_t* interrupt){
 void CAN_EnableInterrupt(uint8_t interrupt){
 	uint8_t intr=0;
 	CAN_GetInterrupt(&intr);
-	intr|=interrupt;	
+	intr|=interrupt;
+	CAN_SetInterrupt(intr);	
 }
 
 /**
@@ -352,8 +350,8 @@ void CAN_EnableInterrupt(uint8_t interrupt){
 void CAN_DisableInterrupt(uint8_t interrupt){
 	uint8_t intr=0;
 	CAN_GetInterrupt(&intr);
-	intr|=(~interrupt);
-
+	intr&=(~interrupt);
+	CAN_SetInterrupt(intr);
 }
 
 /**
@@ -361,14 +359,24 @@ void CAN_DisableInterrupt(uint8_t interrupt){
  * @param uint8_t baudrate passes the identifier for specific baudrate.
  * @retval void
  */
-void CAN_SetBaudRate(uint32_t baudrate);
+void CAN_SetBaudRate(uint32_t baudrate){
+
+
+
+
+}
 
 /**
  * @brief Gets the baudrate at which the CAN system is communicating.
  * @param uint32_t* passes address of the variable where the baudrate will be copied.
  * @retval void
  */
-void CAN_GetBaudRate(uint32_t* baudrate);
+void CAN_GetBaudRate(uint32_t* baudrate){
+	uint8_t register=0;
+	CAN_ReadRegister(_CNF1,&register);
+	/* Getting Baud Rate Prescalars (BRPs) and calculating baudrate. */
+
+}
 
 /**
  * @brief Trigger request to transmit a CAN frame from a specific TXB over SPI.
@@ -644,37 +652,156 @@ void CAN_SetRXBMode(uint8_t* RXB, uint8_t RXB_mode){
 
 /**
  * @brief Configure TXnRTS pins of the specific TXB.
- * @param uint8_t rts_pin_index.
- *	- 0x00 : to disable RTS for each TXn
- * 	- 0x01 : to configure RTS for TX0
- *	- 0x02 : to configure RTS for TX1
- *	- 0x04 : to configure RTS for TX2
+ *  @param uint8_t txnrts will tell whether to enable or disable a specific TXnRTS pin of MCP2515 in current mode.
+ *		- 0x00 for disabling all TXnRTS pins in current mode.
+ *		- 0x01 for enabling the TX0RTS pin , disabling the remaining two.
+ * 		- 0x02 for enabling the TX1RTS pin , disabling the remaining two.
+ *		- 0x03 for enabling both TX0RTS and TX1RTS , disabling the remaining one.
+ *		- 0x04 for enabling the TX2RTS pin , disabling the remaining two.
+ *		- 0x05 for enabling both TX0RTS and TX2RTS , disabling the remaining one.
+ *		- 0x06 for enabling both TX1RTS and TX2RTS , disabling the remaining one.
+ *		- 0x07 for enabling all TXnRTS pins. 
+ *		ORing can be done to enable or disable mulitple TXnRTS pins in current mode.
  * @retval void
  */
-void CAN_ConfigTXnRTS(uint8_t rts_pin_index){
+void CAN_ConfigTXnRTS(uint8_t txnrts){
 	uint8_t register=0;
 	CAN_ReadRegister(_TXRTSCTRL,&register);
 	register&=(0xF8);
-	register|=(0xrts_pin_index);
+	register|=(txnrts);
 	CAN_WriteRegister(_TXRTSCTRL,&register);
 }
 
 /**
  * @brief Configure RXnBF pins of the specific RXB.
- * @param uint8_t bfp_pin_index.
- *	- 0x00 : to disable both RXnBF pins.
- *	- 0x05 : to enable RX0BF.
- *	- 0x0A : to enable RX1BF.
- * @retval void
+ * @param uint8_t rxnbf will tell whether to enable or disable a specific RXnBF pin of MCP2515 in new mode or not irrespective of what their states are in current mode.
+ *		- 0x12 for disabling both RXnBF pins in new mode (pin function is enabled for default thus programmer can choose to use it as digital input pin or for RTS.)
+ *		- 0x13 for enabling RX0BF, disabling RX1BF.
+ *		- 0x14 for enabling RX1BF, disabling RX0BF.
+ *		- 0x15 for enabling both RXnBF pins.
+ * @retval void 
  */
-void CAN_ConfigRXnBF(uint8_t bfp_pin_index){
+void CAN_ConfigRXnBF(uint8_t rxnbf){
 	uint8_t register=0;
 	CAN_ReadRegister(_BFPCTRL,&register);
 	register&=(0xF0);
-	register|=(bfp_pin_index);
+	register|=(rxnbf);
 	CAN_WriteRegister(_BFPCTRL,&register);
 }
 
+
+/**
+ * @brief Tells whether the current TX/RX frame is a normal frame or RTR frame.
+ * 	  Its programmer's responsibility to use this routine carefully, it will only tell you whether the RTR bit is set for specific TXbn or RXBn, it won't tell about whether the buffer is full or empty, programmer must ensure 
+ * 	  at its own.
+ * @param uint8_t* mXBn passes the address of TXBs/RXBs for which RTR bit has to be checked.
+ * @retval uint8_t tells whether the specific frame is set/obtained as RTR frame or not.
+ *		- 0 if RTR is not set.
+ *		- 1 if RTR in set.
+ *		- EINVALARG if invalid mXBn value. 
+ */
+uint8_t CAN_GetRTR(uint8_t* mXBn){
+	
+	uint8_t register=0;
+	if(mXBn==TXB0 || mXBn==TXB1 || mXBn==TXB2){
+	/* Getting RTR bit for specified TX frame to be transmitted. */	
+	
+		CAN_ReadRegister(mXBn+5,&register);  /* reading DLC register. */
+		if((register&(0x40))==(0x40)){
+		/* RTR bit is set. */
+			return 1;
+		}else{
+		/* RTR bit in not set. */
+			return 0;
+		}
+		
+	}else if(mXBn==RX0 || mXBn==RX1){
+	/* Getting RTR bit for received RX frame. */
+		CAN_ReadRegister(mXBn,&register);
+		if((register&(0x08))==(0x08)){
+		/* RTR bit is set. */
+			return 1;
+		}else{
+		/* RTR bit is not set. */
+			return 0;
+		}
+		
+	}else{
+		return ENIVALARG;
+	}
+}
+
+/**
+ * @brief Sets the specific TXBn frame to be normal or RTR frame, it only sets the RTR bit for specific TXBn.
+ *	  This must be used after CAN_WriteFrame(), CAN_WriteFrame() by default don't include setting up of RTR bit, thus must be explicitly done using this function. 
+ * @param uint8_t* TXBn passes the address of the TXB whose frame type property has to be changed.
+ * @param uint8_t rtr_val tell whether to set the RTR bit to be 0 or 1, setting 0 means normal frame , setting it 1 means RTR frame.
+ * @retval void
+ */
+void CAN_SetRTR(uint8_t* TXBn, uint8_t rtr_val){
+	uint8_t register=rtr_val;
+	CAN_ReadRegister(TXBn+5,&register);   /* Reading DLC register for RTR bit. */
+	if(rtr_val==0){
+		register&=(0xBF);
+	}else{
+		register|=(0x40);
+	}
+	CAN_WriteRegister(TXBn+5,&register);
+}
+
+/**
+ * @brief Tells whether the specific TXB/RXB is normal or extended frame.
+ * @param uint8_t* mXBn passes the address of RXB/TXB whose frame type has to be checked.
+ * @retval uint8_t tells whether the frame type of TXB/RXB is normal or extended.
+ */
+uint8_t CAN_GetFrameType(uint8_t* mXBn){
+	uint8_t* register=0;
+	CAN_ReadRegister(mXBn+2,&register);
+	if((register&(0x08))==(0x08)){
+	/* Frametype is extended. */
+		return 1;
+	}else{
+	/* Frametype is standard. */
+		return 0;
+	}
+}
+
+/**
+ * @brief Sets the frame type information i.e. sets the EXIDE bit of TXBnSIDL.
+ * @param uint8_t* TXBn passes the address of the TX buffer for which the Frame type of specific TX must be set, CAN_WriteFrame() by default writes to this bit by identifying the frame type depending on the CAN ID structure.
+ * @param uint8_t exide_val pass the information whether to set exide bit to 0 or 1, if exide_val=0, exide bit is set to 0 i.e. normal frame type, and if exide_val=1, frame type is extended.
+ * @retval void
+ */
+void CAN_SetFrameType(uint8_t* TXBn, uint8_t exide_val){
+	uint8_t register=0;
+	CAN_ReadRegister(TXBn+2,&register);   /* Reading the TXBnSIDL register  */
+	if(exide_val==0){
+	/* standard frame type. */
+		register&=(0xF7);
+	}else{
+	/* extended frame type. */
+		register|=(0x08);
+	}
+	CAN_WriteRegister(TXBn+2,&register);
+}
+
+/**
+ * @brief enables/disables roll over to RX1 in case RX0 is full or its read but not marked as read.
+ * @param uint8_t roll_ovr passes the information whether to enable or disable the frame roll over to RX1 in case RX0 is full or not marked as read.
+ * @retval void
+ */
+void CAN_RollOver2RX1(uint8_t roll_ovr){
+	uint8_t register=0;
+	CAN_ReadRegister(RX0,&register);
+	if(roll_ovr==0){
+	/* Disable roll over to RX1. */
+		register&=(0xF9);
+	}else{
+	/* Enable the roll over to RX1. */
+		register|=(0x06);
+	}
+	CAN_WriteRegister(RX0,&register);
+}
 
 
 
