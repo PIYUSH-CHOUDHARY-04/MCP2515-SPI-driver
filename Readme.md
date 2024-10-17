@@ -16,8 +16,14 @@
     |    |--- Pin_connection.h
     |
     |
+    |---/Src
+    |    |--- CAN_mcp2515.c
+    |    
+    |---/resources
+    |    |--- MCP2515-Stand-Alone-CAN-Controller-with-SPI-20001801J.pdf
+    |    |
     |
-    |
+    |--- Readme.md
     
 
 <p> This driver offers you a high level API for interacting with CAN controller as well as low level API for those who want more fine-grain control over the CAN controller. <p>
