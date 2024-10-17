@@ -120,10 +120,10 @@ uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame);
 
 /**
  * @brief Switches the operational mode of the MCP2515 CAN controller.
- * @param uint8_t mode passes the identifier of the mode to which the CAN controller must switch to.
+ * @param mode_switch* switch_info passes the address of the mode_switch structure which contains all details about mode change.
  * @retval void
  */
-void CAN_SwitchMode(uint8_t mode);
+void CAN_SwitchMode(mode_switch* switch_info);
 
 /**
  * @brief Clears all the previously enabled interrupt and only enables the specific interrupt which is passed to it as its argument.
@@ -292,24 +292,53 @@ void CAN_ConfigTXnRTS(uint8_t rts_pin_index);
 void CAN_ConfigRXnBF(uint8_t bfp_pin_index);
 
 /**
- * @brief Disables the RX1 buffer frm receiving CAN frames, thus only RX0 will receive the CAN frame, if RX0 is full, the received CAN frame will be discarded.
- * @param void
- * @retval void
+ * @brief Tells whether the current TX/RX frame is a normal frame or RTR frame.
+ * @param uint8_t* mXBn passes the address of TXBs/RXBs for which RTR bit has to be checked.
+ * @retval uint8_t tells whether the specific frame is set/obtained as RTR frame or not.
  */
-
-
-void CAN_DisableRX1(void);
+uint8_t CAN_GetRTR(uint8_t* mXBn);
 
 /**
- * @brief Enables the RX1 buffer frm receiving CAN frames, thus only RX0 will receive the CAN frame, if RX0 is full, the received CAN frame will be discarded.
- * @param void
+ * @brief Sets the specific TXBn frame to be normal or RTR frame.
+ * @param uint8_t* TXBn passes the address of the TXB whose frame type property has to be changed.
+ * @param uint8_t rtr_val tell whether to set the RTR bit to be 0 or 1, setting 0 means normal frame , setting it 1 means RTR frame.
  * @retval void
  */
+void CAN_SetRTR(uint8_t* TXBn, uint8_t rtr_val);
 
-void CAN_EnableRX1(void);
+/**
+ * @brief Tells whether the specific TXB/RXB is normal or extended frame.
+ * @param uint8_t* mXBn passes the address of RXB/TXB whose frame type has to be checked.
+ * @retval uint8_t tells whether the frame type of TXB/RXB is normal or extended.
+ */
+uint8_t CAN_GetFrameType(uint8_t* mXBn);
 
+/**
+ * @brief Sets the frame type information i.e. sets the EXIDE bit of TXBnSIDL.
+ * @param uint8_t* TXBn passes the address of the 
+ * @param uint8_t exide_val pass the information whether to set exide bit to 0 or 1, if exide_val=0, exide bit is set to 0 i.e. normal frame type, and if exide_val=1, frame type is extended.
+ * @retval void
+ */
+void CAN_SetFrameType(uint8_t* TXBn, uint8_t exide_val);
 
+/**
+ * @brief enables/disables roll over to RX1 in case RX0 is full or its read but not marked as read.
+ * @param uint8_t roll_ovr passes the information whether to enable or disable the frame roll over to RX1 in case RX0 is full or not marked as read.
+ * @retval void
+ */
+void CAN_RollOver2RX1(uint8_t roll_ovr);
 
+/**
+ * @brief Get the filters for RXBs.
+ * @param uint8_t* RXB passes the address of the specific RXB.
+ *
+/*  
+
+	FILTER AND MASK MODIFICATION.
+	CONFIG MODE REGISTER MODIFICATION.
+	'EFLG' REGISTER MODIFICATION.
+
+*/
 
 
 /*====================================================================<<IO APIS>>===================================================================*/
