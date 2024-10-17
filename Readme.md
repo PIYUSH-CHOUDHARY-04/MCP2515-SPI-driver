@@ -10,7 +10,7 @@
     |    |
     |
     |
-    |---/inc
+    |---/Inc
     |    |--- CAN_mcp2515.h
     |    |--- MCP2515.h
     |    |--- Pin_connection.h
