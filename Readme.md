@@ -5,7 +5,7 @@
     /MCP2515-SPI-driver
     |
     |---/docs
-    |    |--- API_Manual.pdf
+    |    |--- MCP2515-Standalone-CAN-controller-User-manual.pdf
     |    |
     |    |
     |
