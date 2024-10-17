@@ -1,5 +1,25 @@
 <h1>MCP2515 Standalone SPI CAN controller driver v1.0</h1>
 <h2> Author : Piyush Choudhary</h2>
+<p>
+    Project Structure :
+    /MCP2515-SPI-driver
+    |
+    |---/docs
+    |    |--- API_Manual.pdf
+    |    |
+    |    |
+    |
+    |
+    |---/inc
+    |    |--- CAN_mcp2515.h
+    |    |--- MCP2515.h
+    |    |--- Pin_connection.h
+    |
+    |
+    |
+    |
+    
+</p>
 <p> This driver offers you a high level API for interacting with CAN controller as well as low level API for those who want more fine-grain control over the CAN controller. <p>
 <p>NOTE00 : Before using this driver, make sure that you've initialized HAL library by calling HAL_Init() and also its sub-sections like HAL_GPIO, HAL_SPI, HAL_NVIC etc by calling HAL_GPIO_Init(), HAL_SPI_Init(), HAL_NVIC_Init() respectively etc.<p>
 <p>NOTE01 : The SPI structure 'SPI_HandleTypeDef' should be initialized with name 'hspi1', 'hspi1' is used by default in this entire library for SPI communication.<p>
