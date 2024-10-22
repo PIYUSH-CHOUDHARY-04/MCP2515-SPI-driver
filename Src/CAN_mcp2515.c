@@ -65,6 +65,24 @@ void CAN_ReadRegister(uint8_t* reg_addr, uint8_t* byte){
 }
 
 /**
+ * @brief Modifies the specific bit of a given register.
+ * @param uint8_t* reg_addr passes the address of the register which has to be modified.
+ * @param uint8_t* mask passes the address of the mask which will tell which bits of the correspoding register have to be modified.
+ * @param uint8_t* data will tells the value of bit for which mask bits are 1.
+ * @retval void
+ */
+void CAN_BitModify( uint8_t* reg_addr, uint8_t* mask , uint8_t* data){
+	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET);
+	const uint8_t cmd=BIT_MODIFY;
+	HAL_SPI_Transmit(&hspi1,&cmd,1,HAL_MAX_DELAY);
+	HAL_SPI_Transmit(&hspi1,reg_addr,1,HAL_MAX_DELAY);
+	HAL_SPI_Transmit(&hspi1,mask,1,HAL_MAX_DELAY);
+	HAL_SPI_Transmit(&hspi1,data,1,HAL_MAX_DELAY);
+	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
+
+}
+
+/**
  * @brief Writes the entire CAN frame to the specific TXB.
  * @param uint8_t* TXB passes the address of the specific TX buffer where we need to write the CAN frame.
  * @param can_t* can_frame passes the address of the frame (created by user program.)
@@ -107,7 +125,7 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 	CAN_WriteRegister(_CANINTF,&register);
 
 	/* We can now write next frame, it's programmer's responsibility to load the each details of CAN frame before calling CAN_Transmit(), if CAN_Transmit is not called, the corresponding
-	 * TXBn won't be considered as full. */
+	   TXBn won't be considered as full. */
 	
 	/* We've pointer to the can_t structure, thus we can directly map the structure to the specific TXB. */
 	/* We'll write the dlc and data attribute of the structure as it is, but will first reformat the CAN ID field and then write it.*/
@@ -265,22 +283,24 @@ uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
 uint8_t CAN_SwitchMode(mode_switch* switch_info){
 
 	uint8_t register=0;
+	uint8_t mask=0x07;
+	uint8_t data=switch_info->clkout;
 
 
 	/* Checking whether the device is already in required mode or not */
 	
 	CAN_ReadRegister(_CANCTRL,&register);
-	if((register&(0xE0))==((switch_info->Switch2mode<<5)&(0xE0))){
+	if((register&(0xE0))==(((switch_info->Switch2mode)<<5)&(0xE0))){
 		/* controller already in requested mode. */
 		return 1;
 	}
 
 	/* Modifying _CANCTRL register. */
 
-	register&=(0xE0); /* ABAT, OSM and CLKOUT bits cleared. */
-	register|=(switch_info->clkout);
+	/* Clearing ABAT and OSM bits, writing CLKOUT bits. */
 
-	CAN_WriteRegister(_CANCTRL,&register);
+	CAN_BitModify(_CANCTRL,&mask,&data);
+
 	
 	/* Disabling all interrupts and clearing interrupt flags */
 	register=0;
@@ -294,7 +314,6 @@ uint8_t CAN_SwitchMode(mode_switch* switch_info){
 	CAN_WriteRegister(TX2,&register);
 
 	CAN_WriteRegister(RX1,&register);
-	register=(0x06); /* Only enabling TXB0 roll over to TXB1 */
 	CAN_WriteRegister(RX0,&register);
 
 	/* Configuring TXnRTS and RXnBF pins of MCP2515. */
@@ -302,11 +321,9 @@ uint8_t CAN_SwitchMode(mode_switch* switch_info){
 	CAN_WriteRegister(_BFPCTRL,&(switch_info->rxnbf));
 
 	/* Writing the mode switch bits. */
-	register=0;
-	CAN_ReadRegister(_CANCTRL,&register);
-	register&=(0x1F); /* clearing mode configuration bits. */
-	register|=(((switch_info->Switch2mode)<<5)&(0xE0));
-	CAN_WriteRegister(_CANCTRL,&register);
+	mask=0xE0;
+	data=(switch_info->Switch2Mode)<<5)&(0xE0);
+	CAN_BitModify(_CANCTRL,&mask,&data);
 	return 0;
 
 }
@@ -336,10 +353,9 @@ void CAN_GetInterrupt(uint8_t* interrupt){
  * @retval void
  */
 void CAN_EnableInterrupt(uint8_t interrupt){
-	uint8_t intr=0;
-	CAN_GetInterrupt(&intr);
-	intr|=interrupt;
-	CAN_SetInterrupt(intr);	
+	/* Enabling means the specific bit must be set to 1, thus both mask and data can be taken same of enabling specific interrupt. */
+	uint8_t mask_data=interrupt;
+	CAN_BitModify(_CANINTE,&mask_data,&mask_data);	
 }
 
 /**
@@ -348,10 +364,10 @@ void CAN_EnableInterrupt(uint8_t interrupt){
  * @retval void
  */
 void CAN_DisableInterrupt(uint8_t interrupt){
-	uint8_t intr=0;
-	CAN_GetInterrupt(&intr);
-	intr&=(~interrupt);
-	CAN_SetInterrupt(intr);
+	/* disabling means setting the specific interrupt bit to 0 thus data will be 0x00. */
+	uint8_t mask=interrupt;
+	uint8_t data=0x00;
+	CAN_BitModify(_CANINTE,&mask,&data);
 }
 
 /**
@@ -398,8 +414,9 @@ uint8_t CAN_TriggerRTS_SPI(uint8_t* TXB){
 		/* ongoing transmission, TXREQ bit already set in TXBnCTRL register. */
 		return ERXBFULL;
 	}
-	register|=(0x08);
-	CAN_WriteRegister(TXB,&register);
+	register=0x08;
+	CAN_BitModify(TXB,&register,&register);
+	
 	return 0;
 	
 }
@@ -448,28 +465,36 @@ uint8_t CAN_TriggerRTS_PIN(uint8_t* TXB){
 }
 
 /**
- * @brief Immediately aborts the transmission for the specific TX buffer.
+ * @brief Immediately aborts the transmission for the specific TX buffer by clearing the TXREQ bit of TXBnCTRL register.
  * @param uint8_t* TXB will pass the address of the specific TXB whose transmission is supposed to be aborted.
  * @retval void
  */
 void CAN_AbortTX(uint8_t* TXB){
-	uint8_t register=0;
-	CAN_ReadRegister(TXB,&register);
-	register|=(0x40);
-	CAN_WriteRegister(TXB,&register);
+	uint8_t mask=0x08;
+	uint8_t data=0x00;
+	CAN_BitModify(TXB,&mask,&data);
 	
 }
 
 /**
- * @brief Immediately aborts the transmission of all TXBs, generally used during mode switch.
+ * @brief Immediately aborts the transmission of all TXBs by writing to ABAT bit of CANCTRL register, generally used during mode switch.
  * @param void
  * @retval void
  */
 void CAN_AbortAllTX(void){
-	uint8_t register=0;
-	CAN_ReadRegister(_CANCTRL,&register);
-	register|=(0x10);
-	CAN_WriteRegister(_CANCTRL,&register);
+	uint8_t mask_data=0x10;
+	CAN_BitModify(_CANCTRL,&mask_data,&mask_data);
+}
+
+/**
+ * @brief Clears the ABAT bit of the CANCTRL in order to continue the transmission.
+ * @param void
+ * @retval void
+ */
+void CAN_UnAbortAllTX(void){
+	uint8_t mask=0x10;
+	uint8_t data=0x00;
+	CAN_BitModify(_CANCTRL,&mask,&data);
 }
 
 /**
@@ -495,49 +520,36 @@ uint8_t CAN_GetClkOut(void){
 /**
  * @brief Enable or disable the CLKOUT pin of MCP2515.
  * @param uint8_t clkout_mode passes the CLKOUT mode i.e. whether to disable or enable the CLKOUT pin.
- *	- 0 : means disable the CLKOUT mode.
- *	- 1 : means enable the CLKOUT mode.
- * @retval uint8_t tells whether the operation is successful or not,
- * 	- 0 on success.
- *	- EINVALARG on failure due to wrong clkout_mode value.
+ *	- 0x00 : means disable the CLKOUT mode.
+ *	- 0x04 : means enable the CLKOUT mode.
+ * @retval void
  */
-uint8_t CAN_SetClkOut(uint8_t clkout_mode){
-	uint8_t register=0;
-	CAN_ReadRegister(_CANCTRL,&register);
-	if(clkout_mode==0){
-		register&=(0xFB); /* makes CLKEN bit of _CANCTRL low. */
-	}else if(clkout_mode==1){
-		register|=(0x04); /* makes CLKEN bit of _CANCTRL high. */
-	}else{ 
-		return EINVALARG;
-	}
-	CAN_WriteRegister(_CANCTRL,&register);	
-	return 0;
+void CAN_SetClkOut(uint8_t clkout_mode){
+	uint8_t mask=0x04;
+	uint8_t data=clkout_mode;
+	CAN_BitModify(_CANCTRL,&mask,&data);
 }
 
 /**
  * @brief Sets the clock frequency for external devices on pin 3 of MCP2515.
  * @param uint8_t prescalar passes the scalar value corresponding to which the clock frequency of CLKOUT will change.
- * 	- 0 : CLKOUT_freq = OSC_freq
- *	- 1 : CLKOUT_freq = OSC_freq/2
- * 	- 2 : CLKOUT_freq = OSC_freq/4
- * 	- 3 : CLKOUT_freq = OSC_freq/8
+ * 	- 0x01 : CLKOUT_freq = OSC_freq
+ *	- 0x01 : CLKOUT_freq = OSC_freq/2
+ * 	- 0x02 : CLKOUT_freq = OSC_freq/4
+ * 	- 0x03 : CLKOUT_freq = OSC_freq/8
  * @retval void
  */
 void CAN_SetClkOutFreq(uint8_t prescalar){
-	uint8_t register=0;
-	CAN_ReadRegister(_CANCTRL,&register);
-	register&=(0xFC); /* clearing the CLKPRE bits of the _CANCTRL register. */
-	register|=(prescalar);
-	
-	CAN_WriteRegister(_CANCTRL,&register);
-
+	uint8_t mask=0x03;
+	uint8_t data=prescalar;
+	CAN_BitModify(_CANCTRL,&mask,&data);
 }
 
 /**
  * @brief Transmits specified frame if TXB is not empty.
  * @param uint8_t* TXB passes the address of the TXB whose frame is attempted to be transmitted.
  * @retval uint8_t tells whether the transmission is successful or failed, returns 0 on success, returns ETXBFULL on failure.
+ */
 uint8_t CAN_Transmit(uint8_t* TXB){
 	/* First we'll check whether the TXREQ bit of TXBnCTRL register of specific TX buffer is already high or not, if high, TXB is already undergoing transmission. */
 	uint8_t register=0;
@@ -546,15 +558,9 @@ uint8_t CAN_Transmit(uint8_t* TXB){
 		/* TXREQ already set, TXBn undergoing transmission already. */
 		return ETXBFULL;
 	}
-	register|=(0x08);
-	
-	/* Clearing all transmission records from past transmission for the specific TXBn. */
-
-	register&=(0x8F);
-	CAN_WriteRegister(TXB,&register);
+	register=0x08;
+	CAN_BitModify(TXB,&register,&register);
 	return 0;
-
-
 }
 
 /**
@@ -565,36 +571,37 @@ uint8_t CAN_Transmit(uint8_t* TXB){
 uint8_t CAN_MarkRead(uint8_t* RXB){
 
 	/* First checking whether specified RXB is empty or have some CAN frame. */
-	uint8_t register1=0;
-	uint8_t register2=0;
-	CAN_ReadRegister(_CANINTF,&register1);
-	/* Clearing records of previous frames. */
-	CAN_ReadRegister(RXB,&register2);
+	uint8_t register=0;
+	
+	uint8_t mask=0x09;
+	
+	CAN_ReadRegister(_CANINTF,&register);
+	
 	
 	
 	if(RXB==RX0){
-		if((register1&(0x01))!=(0x01)){
+		if((register&(0x01))!=(0x01)){
 		/* RXB0 is empty, thus can't mark the RXB0 as read. */
 			return ERXBEMPTY;
 		}
-		/* RXB0 frame receive bit is 1 i.e. RX0IF is 1, thus clearing. */
-		register1&=(0xFE);
-		register2&=(0xF6);
+		register=0;
+		CAN_BitModify(RXB,&mask,&register); /* clearing RXRTR and FILHIT0 bits of RXBnCTRL register. */
+		mask=0x01;
+				
 	}else if(RX=RX1){
 		if((register1&(0x02))!=(0x02)){
 		/* RXB1 is empty, thus can't mark the RXB1 as read. */
 			return ERXBEMPTY;
 		}
-		/* RXB1 frame receive bit is 1 i.e. RX1IF is 1, thus clearing. */
-		register1&=(0xFD);
-		register2&=(0xF0);
+		register=0;
+		CAN_BitModify(RXB,&mask,&register); /* clearing RXRTR and FILHIT0 bits of RXBnCTRL register. */
+		mask=0x02;
+
 	}else{
 		return EINVALARG;
 	}
 	
-	CAN_WriteRegister(RXB,&register2);
-	CAN_WriteRegister(_CANINTF,&register1);
-	
+	CAN_BitModify(_CANINTF,&mask,&register); /* clearing interrupt flags from CANINTF register. */
 	return 0;
 }
 
@@ -604,10 +611,8 @@ uint8_t CAN_MarkRead(uint8_t* RXB){
  * @retval void
  */
 void CAN_EnableOSM(void){
-	uint8_t register=0;
-	CAN_ReadRegister(_CANCTRL,&register);
-	register|=(0x08);
-	CAN_WriteRegister(_CANCTRL,&register);
+	uint8_t mask_data=0x08;
+	CAN_BitModify(_CANCTRL,&mask_data,&mask_data);
 }
 
 /**
@@ -616,10 +621,9 @@ void CAN_EnableOSM(void){
  * @retval void
  */
 void CAN_DisableOSM(void){
-	uint8_t register=0;
-	CAN_ReadRegister(_CANCTRL,&register);
-	register&=(0xF7);
-	CAN_WriteRegister(_CANCTRL,&register);
+	uint8_t mask=0x08;
+	uint8_t data=0x00;
+	CAN_BitModify(_CANCTRL,&mak,&data);
 }
 
 /**
@@ -628,10 +632,9 @@ void CAN_DisableOSM(void){
  * @param uint8_t Priority passes the priority value for the TXB.
  * @retval void
 void CAN_ChangeTXPriority(uint8_t* TXB, uint8_t Priority){
-	uint8_t register=0;
-	CAN_ReadRegister(TXB,&register);
-	register&=(0xFC);
-	register|=(Priority);
+	uint8_t mask=0x03;
+	uint8_t data=Priority;
+	CAN_BitModify(TXB,&mask,&data);
 }
 
 /**
@@ -643,42 +646,27 @@ void CAN_ChangeTXPriority(uint8_t* TXB, uint8_t Priority){
  * @retval void 
  */
 void CAN_SetRXBMode(uint8_t* RXB, uint8_t RXB_mode){
-	uint8_t register=0;
-	CAN_ReadRegister(RXB,&register);
-	register&=(0x9F);
-	register|=((RXB_mode<<4)&(0x60);
-	CAN_WriteRegister(RXB,&register);
+	uint8_t mask=0x60;
+	uint8_t data=(RXB_mode<<5)&(0x60);
+	CAN_BitModify(RXB,&mask,&data);
 }
 
 /**
- * @brief Configure TXnRTS pins of the specific TXB.
- *  @param uint8_t txnrts will tell whether to enable or disable a specific TXnRTS pin of MCP2515 in current mode.
- *		- 0x00 for disabling all TXnRTS pins in current mode.
- *		- 0x01 for enabling the TX0RTS pin , disabling the remaining two.
- * 		- 0x02 for enabling the TX1RTS pin , disabling the remaining two.
- *		- 0x03 for enabling both TX0RTS and TX1RTS , disabling the remaining one.
- *		- 0x04 for enabling the TX2RTS pin , disabling the remaining two.
- *		- 0x05 for enabling both TX0RTS and TX2RTS , disabling the remaining one.
- *		- 0x06 for enabling both TX1RTS and TX2RTS , disabling the remaining one.
- *		- 0x07 for enabling all TXnRTS pins. 
- *		ORing can be done to enable or disable mulitple TXnRTS pins in current mode.
+ * @brief Configure TXnRTS pins of the specific TXB, must be used in configuration mode only!
+ * @param uint8_t txnrts will tell whether to enable or disable a specific TXnRTS pin of MCP2515 in current mode.
+ * 	  Macros can be used to configure the TXnRTS pins of MCP2515.
  * @retval void
  */
 void CAN_ConfigTXnRTS(uint8_t txnrts){
-	uint8_t register=0;
-	CAN_ReadRegister(_TXRTSCTRL,&register);
-	register&=(0xF8);
-	register|=(txnrts);
-	CAN_WriteRegister(_TXRTSCTRL,&register);
+	uint8_t mask=0x07;
+	uint8_t data=txnrts;
+	CAN_BitModify(_TXRTSCTRL,&mask,&data);
 }
 
 /**
  * @brief Configure RXnBF pins of the specific RXB.
  * @param uint8_t rxnbf will tell whether to enable or disable a specific RXnBF pin of MCP2515 in new mode or not irrespective of what their states are in current mode.
- *		- 0x12 for disabling both RXnBF pins in new mode (pin function is enabled for default thus programmer can choose to use it as digital input pin or for RTS.)
- *		- 0x13 for enabling RX0BF, disabling RX1BF.
- *		- 0x14 for enabling RX1BF, disabling RX0BF.
- *		- 0x15 for enabling both RXnBF pins.
+ *	  Macros can be used to configure the RXnBF pins of MCP2515.
  * @retval void 
  */
 void CAN_ConfigRXnBF(uint8_t rxnbf){
