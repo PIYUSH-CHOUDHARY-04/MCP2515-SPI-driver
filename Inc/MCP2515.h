@@ -279,13 +279,27 @@
 
 
 /**
- * @brief Macros for configuring TXnRTS pins of MCP2515.
+ * @brief Macros for configuring TXnRTS pins of MCP2515, disabled pin will be set to digital input mode.
+ *	  ORing can be done for complex configurations.
  */
 
-#define EN_RTS0 0x01 */!< Enables RTS pin for TXB0 */
-#define EN_RTS1 0x02 */!< Enables RTS pin for TXB1 */
-#define EN_RTS2 0x04 */!< Enables RTS pin for TXB2 */
+#define DI_RTS_ALL 	0x00 		/*!< Disables all RTS pins    */
+#define EN_RTS0 	0x01 		/*!< Enables RTS pin for TXB0 */
+#define EN_RTS1 	0x02 		/*!< Enables RTS pin for TXB1 */
+#define EN_RTS2 	0x04 		/*!< Enables RTS pin for TXB2 */
 
+
+
+/**
+ * @brief Macros for configuring RXnBF pins of MCP2515.
+ *	  pin function must be enabled for enabling each RXnBF pin i.e. ORing must be done else the RXnBF pin will only be activated and will remain in digital input mode.
+ */
+
+#define DI_RXnBF_ALL_PINFUNC	0x00
+#define EN_RX0BF_PINFUNC	0x04
+#define EN_RX1BF_PINFUNC	0x08
+#define EN_RX0BF		0x01
+#define EN_RX1BF		0x02	
 
 
 

@@ -93,7 +93,7 @@ void CAN_SoftReset(void);
  * @param const uint8_t byte passes the 8 bit value to be stored in specific register.
  * @retval void
  */
-void CAN_WriteRegister(uint8_t* reg_addr,const uint8_t* byte);
+void CAN_WriteRegister(uint8_t* reg_addr, const uint8_t* byte);
 
 /**
  * @brief Reads 8 bit value from a specific register.
@@ -104,11 +104,20 @@ void CAN_WriteRegister(uint8_t* reg_addr,const uint8_t* byte);
 void CAN_ReadRegister(uint8_t* reg_addr, uint8_t* byte);
 
 /**
+ * @brief Modifies the specific bit of a given register.
+ * @param uint8_t* reg_addr passes the address of the register which has to be modified.
+ * @param uint8_t* mask passes the address of the mask which will tell which bits of the correspoding register have to be modified.
+ * @param uint8_t* data will tells the value of bit for which mask bits are 1.
+ * @retval void
+ */
+void CAN_BitModify( uint8_t* reg_addr, uint8_t* mask , uint8_t* data);
+
+/**
  * @brief Writes the entire CAN frame to the specific TXB.
  * @param uint8_t* TXB passes the address of the specific TX buffer where we need to write the CAN frame.
  * @param can_t* can_frame passes the address of the frame (created by user program.)
  * @retval uint8_t tells whether the write operation is successful or not, on success returns 0 and on failure returns ETXBFULL.
-uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame );
+uint8_t CAN_WriteFrame(uint8_t* TXB, can_t* can_frame );
 
 /**
  * @brief Reads the entire CAN frame from the CAN controller into a specified program buffer.
@@ -200,6 +209,13 @@ void CAN_AbortTX(uint8_t* TXB);
 void CAN_AbortAllTX(void);
 
 /**
+ * @brief Clears the ABAT bit of the CANCTRL in order to continue the transmission.
+ * @param void
+ * @retval void
+ */
+void CAN_UnAbortAllTX(void)
+
+/**
  * @brief Gets the information whether CLKOUT pin is configured or not by reading the _CANCTRL register.
  * @param void
  * @retval uint8_t tells whether the CLKOUT pin is enabled or not.
@@ -211,6 +227,8 @@ uint8_t CAN_GetClkOut(void);
 /**
  * @brief Enable or disable the CLKOUT pin of MCP2515.
  * @param uint8_t clkout_mode passes the CLKOUT mode i.e. whether to disable or enable the CLKOUT pin.
+ *	- 0x00 : means disable the CLKOUT mode.
+ *	- 0x04 : means enable the CLKOUT mode.
  * @retval void
  */
 void CAN_SetClkOut(uint8_t clkout_mode);
@@ -271,25 +289,20 @@ void CAN_ChangeTXPriority(uint8_t* TXB, uint8_t Priority);
 void CAN_SetRXBMode(uint8_t* RXB, uint8_t RXB_mode);
 
 /**
- * @brief Configure TXnRTS pins of the specific TXB by writing to _TXRTSCTRL register.
- * @param uint8_t rts_pin_index.
- *	- 0x00 : to disable RTS for each TXn
- * 	- 0x01 : to enable RTS for TX0
- *	- 0x02 : to enable RTS for TX1
- *	- 0x04 : to enable RTS for TX2
+ * @brief Configure TXnRTS pins of the specific TXB.
+ * @param uint8_t txnrts will tell whether to enable or disable a specific TXnRTS pin of MCP2515 in current mode.
+ * 	  Macros can be used to configure the TXnRTS pins of MCP2515.
  * @retval void
  */
-void CAN_ConfigTXnRTS(uint8_t rts_pin_index);
+void CAN_ConfigTXnRTS(uint8_t txnrts);
 
 /**
- * @brief Configure RXnBF pins of the specific RXB.
- * @param uint8_t bfp_pin_index.
- *	- 0x00 : to disbale both RXnBF pins.
- *	- 0x05 : to enable RX0BF
- *	- 0x0A : to enable RX1BF
- * @retval void
+ * @brief Configure RXnBF pins of the specific RXB, must be used in configuration mode only!
+ * @param uint8_t rxnbf will tell whether to enable or disable a specific RXnBF pin of MCP2515 in new mode or not irrespective of what their states are in current mode.
+ *	  Macros cann be used to configure the RXnBF pins of MCP2515.
+ * @retval void 
  */
-void CAN_ConfigRXnBF(uint8_t bfp_pin_index);
+void CAN_ConfigRXnBF(uint8_t rxnbf);
 
 /**
  * @brief Tells whether the current TX/RX frame is a normal frame or RTR frame.
