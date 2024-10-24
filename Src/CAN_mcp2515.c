@@ -670,11 +670,9 @@ void CAN_ConfigTXnRTS(uint8_t txnrts){
  * @retval void 
  */
 void CAN_ConfigRXnBF(uint8_t rxnbf){
-	uint8_t register=0;
-	CAN_ReadRegister(_BFPCTRL,&register);
-	register&=(0xF0);
-	register|=(rxnbf);
-	CAN_WriteRegister(_BFPCTRL,&register);
+	uint8_t mask=0x0F;
+	uint8_t data rxnbf;
+	CAN_BitModify(_BFPCTRL,&mask,&data);
 }
 
 
@@ -776,19 +774,14 @@ void CAN_SetFrameType(uint8_t* TXBn, uint8_t exide_val){
 /**
  * @brief enables/disables roll over to RX1 in case RX0 is full or its read but not marked as read.
  * @param uint8_t roll_ovr passes the information whether to enable or disable the frame roll over to RX1 in case RX0 is full or not marked as read.
+ *	- 0x00 for disabling roll over.
+ *	- 0x04 for enabling roll over.
  * @retval void
  */
 void CAN_RollOver2RX1(uint8_t roll_ovr){
-	uint8_t register=0;
-	CAN_ReadRegister(RX0,&register);
-	if(roll_ovr==0){
-	/* Disable roll over to RX1. */
-		register&=(0xF9);
-	}else{
-	/* Enable the roll over to RX1. */
-		register|=(0x06);
-	}
-	CAN_WriteRegister(RX0,&register);
+	uint8_t mask=0x04;
+	uint8_t data=roll_ovr;
+	CAN_BitModify(RX0,&mask,&data);
 }
 
 
