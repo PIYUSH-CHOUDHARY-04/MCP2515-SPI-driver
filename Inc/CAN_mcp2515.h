@@ -337,6 +337,8 @@ void CAN_SetFrameType(uint8_t* TXBn, uint8_t exide_val);
 /**
  * @brief enables/disables roll over to RX1 in case RX0 is full or its read but not marked as read.
  * @param uint8_t roll_ovr passes the information whether to enable or disable the frame roll over to RX1 in case RX0 is full or not marked as read.
+ *	- 0x00 for disabling roll over.
+ *	- 0x04 for enabling roll over.
  * @retval void
  */
 void CAN_RollOver2RX1(uint8_t roll_ovr);
@@ -344,8 +346,15 @@ void CAN_RollOver2RX1(uint8_t roll_ovr);
 /**
  * @brief Get the filters for RXBs.
  * @param uint8_t* RXB passes the address of the specific RXB.
- *
-/*  
+ * @param uint8_t filt_count passes the index of filter whose value has to be received.
+ * @retval uint8_t tells the filter value.
+ */ 
+uint8_t CAN_GetFilters(uint8_t* RXB, uint8_t filt_count); 
+
+/**
+ * @brief 
+
+
 
 	FILTER AND MASK MODIFICATION.
 	CONFIG MODE REGISTER MODIFICATION.
