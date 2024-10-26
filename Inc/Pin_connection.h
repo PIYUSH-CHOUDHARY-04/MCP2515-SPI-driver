@@ -56,6 +56,13 @@
 
 
 
+/** 
+ * @brief Macro for Oscillator frequency.
+ */
+
+#define OSC_FREQ <freq_value_in_hertz>  /*!< One need to put here the actual frequency of the crystal oscillator he/she is using. */
+
+
 /**
  * @brief EXTIn line mapping to the GPIO pins.
  *

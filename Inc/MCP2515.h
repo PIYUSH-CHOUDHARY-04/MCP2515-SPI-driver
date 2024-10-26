@@ -22,18 +22,18 @@
 #define WRITE 			0x02
 #define READ_RX0_IR		0x90 
 #define READ_RX0_DR	 	0x92 
-#define READ_RX1_IR 		0x94
+#define READ_RX1_IR 	0x94
 #define READ_RX1_DR	 	0X96
-#define LOAD_TX0_IR 		0x40 
+#define LOAD_TX0_IR 	0x40 
 #define LOAD_TX0_DR		0X41 
-#define LOAD_TX1_IR 		0x42
+#define LOAD_TX1_IR 	0x42
 #define LOAD_TX1_DR		0X43
-#define LOAD_TX2_IR 		0x44
+#define LOAD_TX2_IR 	0x44
 #define LOAD_TX2_DR	 	0X45
 #define RTS_TX0 		0x81 
 #define RTS_TX1 		0x82
 #define RTS_TX2 		0x84
-#define READ_STATUS 		0xA0
+#define READ_STATUS 	0xA0
 #define RX_STATUS 		0xB0
 #define BIT_MODIFY 		0x05
 
@@ -76,7 +76,7 @@
 #define RXF5SIDL	(const uint8_t*)0x019
 #define RXF5EID8	(const uint8_t*)0x01A
 #define RXF5EID0	(const uint8_t*)0x01B
-#define TEC		(const uint8_t*)0x01C
+#define TEC		    (const uint8_t*)0x01C
 #define REC	        (const uint8_t*)0x01D
 //#define CANSTAT	(const uint8_t*)0x01E
 //#define _CANCTRL	(const uint8_t*)0x01F
@@ -189,7 +189,8 @@
 
 #define STANDARD_FRAME_TYPE 0x00 /*!< for standard CAN frame, passed to MCP2515_WriteCAN_ID(). */
 #define EXTENDED_FRAME_TYPE 0x01 /*!< for extended CAN frame, passed to MCP2515_WriteCAN_ID(). */
-
+#define DATA_FRAME_TYPE     0x02 /*!< for data frames.   */
+#define REMOTE_FRAME_TYPE   0x04 /*!< for remote frames. */
 
 /**
  * @defgroup CONFIG_MODE config_mode
@@ -296,11 +297,30 @@
  */
 
 #define DI_RXnBF_ALL_PINFUNC	0x00
-#define EN_RX0BF_PINFUNC	0x04
-#define EN_RX1BF_PINFUNC	0x08
-#define EN_RX0BF		0x01
-#define EN_RX1BF		0x02	
+#define EN_RX0BF_PINFUNC	    0x04
+#define EN_RX1BF_PINFUNC	    0x08
+#define EN_RX0BF		        0x01
+#define EN_RX1BF		        0x02	
 
+/**
+ * @brief Filter macros for accessing and configuring filters in configuration mode.
+ *      filter0 and filter1 are for RXB0 and filter2 to filter5 are for RXB1.
+ */
+
+#define FILT0 RXF0SIDH
+#define FILT1 RXF1SIDH
+#define FILT2 RXF2SIDH
+#define FILT3 RXF3SIDH
+#define FILT4 RXF4SIDH
+#define FILT5 RXF5SIDH
+
+/**
+ * @brief Mask macros for accessing and configuring filters in configuration mode.
+ *      Mask0 i.e. RXM0 for RXB0 and Mask1 i.e. RXM1 for RXB1.
+ */
+
+#define MASK0 RXM0SIDH
+#define MASK1 RXM1SIDH
 
 
 /**
@@ -309,7 +329,8 @@
 
 #define ETXBFULL 	0x0A  		/* Error occured when a Write operation to registers of certain TXBn fails due to all TXB being full, this happens when the transmission is in process. */
 #define ERXBEMPTY	0x0B		/* Error occured when a read operation to registers of certain RXBn fails due to all RXB being empty. */
-#define EINVALARG	0x0C
+#define EINVALARG	0x0C        /* Error occured when invalid argument is passed to the specific function/routine. */
+#define EINVALMODE  0x0D        /* Error occured when invalid operation mode is detected for certain operation. */
 
 
 #endif /* MCP2515_H */

@@ -26,6 +26,7 @@
 /**
  * @brief CAN frame structure for frame transmission and reception.
  * @param uint32_t CAN_ID will hold CAN ID of the specific CAN frame.
+ *          The CAN ID field holds CAN ID in format : SID[0:10]<id10,id9,...,id0>|EID[11:28]<id11,id12,...,id28>
  * @param uint_8 data[8] will hold the data transported by CAN frame.
  * @param uint8_t dlc will hold DLC of the CAN frame i.e. the length of data carried by frame ( ranges between 0 to 8 bytes )
  */
@@ -161,20 +162,6 @@ void CAN_EnableInterrupt(uint8_t interrupt);
  * @retval void
  */
 void CAN_DisableInterrupt(uint8_t interrupt);
-
-/**
- * @brief Sets specific baud rate for the subsequent communication over the CAN bus.
- * @param uint8_t baudrate passes the identifier for specific baudrate.
- * @retval void
- */
-void CAN_SetBaudRate(uint32_t baudrate);
-
-/**
- * @brief Gets the baudrate at which the CAN system is communicating.
- * @param uint32_t* passes address of the variable where the baudrate will be copied.
- * @retval void
- */
-void CAN_GetBaudRate(uint32_t* baudrate);
 
 /**
  * @brief Trigger request to transmit a CAN frame from a specific TXB over SPI.
@@ -344,21 +331,221 @@ void CAN_SetFrameType(uint8_t* TXBn, uint8_t exide_val);
 void CAN_RollOver2RX1(uint8_t roll_ovr);
 
 /**
- * @brief Get the filters for RXBs.
- * @param uint8_t* RXB passes the address of the specific RXB.
- * @param uint8_t filt_count passes the index of filter whose value has to be received.
- * @retval uint8_t tells the filter value.
- */ 
-uint8_t CAN_GetFilters(uint8_t* RXB, uint8_t filt_count); 
+ * @brief Retrieves the specific filter value.
+ * @param uint8_t* FILTn passes the address of the filter whose value has to be retrieved.
+ * @param uint32_t* filt_val passes the address of the 4-byte where the filter value will be stored or copied to.
+ * @retval uint8_t tells whether the filter contains the exide value set to 0 or 1 i.e. the filter allows extended or standard frame, can be neglected by setting exide bit to be 0 in corresponding mask.
+ *          - 0 if the filter is for standard frame.
+ *          - 1 if the filter is for extended frame.
+ *          - EINVALMODE if the mode is not configuration mode since dealing with filters and masks needs the device to be in configuration mdoe only.
+ */
+uint8_t CAN_GetFilter(uint8_t* FILTn,uint32_t* filt_val);
+
+/**
+ * @brief Sets the specific filter.
+ * @param uint8_t* FILTn passes the address of the filter whose value has to be set.
+ * @param uint32_t* filt_val passes the address of the 4-byte filter which has to be set.
+ * @param int8_t exide_val passes the value for exide bit i.e. whether the filter is intended for standard or extended frame, 0 for standard frame and 1 for extended frame, works only if the corresponding exide bit in mask is set to 1.
+ * @retval void
+ */
+void CAN_SetFilter(uint8_t* FILTn,uint32_t* filt_val, uint8_t exide_val);
+
+/**
+ * @brief Retrieves the specific mask value.
+ * @param uint8_t* MASKn passes the address of the mask whose value has to be retrieved.
+ * @param uint32_t* mask_val passes the address of the 4-byte where the mask value will be stored or copied to.
+ * @retval uint8_t tells whether the mask contains the exide value set to 0 or 1 i.e. 0 means frame type checing is disabled and 1 means frame type checking is enabled.
+ *          - 0 : frame type checking by filters disabled.
+ *          - 1 : frame type checking by filters enabled.
+ *          - EINVALMODE if the mode is not configuration mode since dealing with filters and masks needs the device to be in configuration mdoe only.
+ */
+uint8_t CAN_GetMask(uint8_t* MASKn,uint32_t* mask_val);
+
+/**
+ * @brief Sets the specific mask.
+ * @param uint8_t* MASKn passes the address of the mask whose value has to be set.
+ * @param uint32_t* mask_val passes the address of the 4-byte mask which has to be set.
+ * @param uint8_t exide_val passes the value for exide bit, if 0 means you are disabling frame type checking and if 1 means you are enabling frame type checking. 
+ * @retval void
+ */
+void CAN_SetMask(uint8_t* MASKn,uint32_t* mask_val, uint8_t exide_val); 
+
+
+
+
+
+
+/*!< CAN BIT TIMING CONFIGURATION AND SYNCHRONIZATION.  */
+
+/**
+ * CAN Bit timing can be configured by modifying certain registers, these registers are CNFn registers (n=1,2,3).
+ * These registers are only accessible in Configuration mode only, thus one need to make sure that the device is in configuration mode before trying accessing the timing registers.  
+ *
+ *
+ *
+ * Bit_Time = t(SyncSeg)+t(PropSeg)+t(PS1)+t(PS2),      Baudrate or Bitrate = 1/Bit_Time.
+ * t(SyncSeg) is 1Tq for MCP2515.
+ * Tq=(2*BRP)/F_OSC , BRP must be atleast 1 else Baudrate will diverge.
+ *   • PropSeg + PS1 >= PS2
+ *   • PropSeg + PS1 >= TDELAY
+ *   • PS2 > SJW
+ *
+ *       Tq = 2.(BRP)/F_OSC = 2.(BV_brp+1)/F_OSC (BV_brp means the bit value of the BRP bits segment.)
+ *       T_bit = (T_syncseg + T_propseg + T_ps1 + T_ps20)*Tq
+ *       T_bit = (4 + BV_propseg + BV_ps1 + BV_ps2)*Tq
+ *       baudrate = 1/(Tq*T_bit)         or          baudrate = F_OSC/(2*(1+BV_brp)*(4+BV_propseg+BV_ps1+BV_ps2))
+ *       propagation segment is generally not changed because it accounts for propagation delays in CAN communication
+ *
+ *       The device boots up with the following values of these variables.
+ *       F_OSC : OSC_FREQ (macro defined in /Inc/Pin_connection.h)
+ *       BV_brp : 0  ::  BRP : 1
+ *       BV_propseg : 0  ::  T_propseg : 1Tq
+ *       BV_ps1 : 3  ::  T_ps1 : 4Tq
+ *       BV_ps2 : 1  ::  T_ps2 : 2Tq
+ *                       T_syncseg : 1Tq
+ *       I.e. Baudrate is 500Kbps and sample point is at 75% bit time.
+ *       The following routines can be used to adjust sampling point as well.
+ *
+*/
+
+
+
+/**
+ * @brief Configures the SJW, i.e. gets and sets SJW value depending upon the passed arguments.
+ * @param uint8_t set_SJW passes the SJW value that has to be set.
+ *          - 0xFF : if user don't want to modify the SJW value.
+ *          - 0x00 : SJW = 1Tq
+ *          - 0x01 : SJW = 2Tq
+ *          - 0x10 : SJW = 3Tq
+ *          - 0x11 : SJW = 4Tq
+ * @param uint8_t Read tells whether to read the SJW or not.
+ *          - 0 : don't read SJW.
+ *          - 1 : read SJW.
+ * @retval uint8_t tells the value of SJW if Read is 1 else returns 0xFF.
+ */
+uint8_t CAN_ConfigureSJW(uint8_t set_SJW,uint8_t Read);
+
+/**
+ * @brief Configures the BRP, i.e. gets and sets BRP value depending upon the passed arguments.
+ * @param uint8_t set_BRP passes the BRP value that has to be set.
+ *          - 0xFF : if user don't want to modify the BRP value.
+ *          - 0x00 to 0x3F : prescalar values by which the baudrate will be scaled.
+ * @param uint8_t Read tells whether to read the SJW or not.
+ *          - 0 : don't read BRP.
+ *          - 1 : read BRP.
+ * @retval uint8_t tells the value of BRP if Read is 1 else returns 0xFF.
+ */
+uint8_t CAN_ConfigureBRP(uint8_t set_BRP,uint8_t Read);
+
+/**
+ * @brief Configures the PropSeg, i.e. gets and sets PropSeg time length value depending upon the passed arguments.
+ *          The actual value of PropSeg will be value denoted by PropSeg bits + 1 with units of Tq (Time Quanta of CAN communication), this is because the PropSeg must be atleast of size 1Tq.
+ * @param uint8_t set_PropSeg passes the PropSeg value that has to be set.
+ *          - 0xFF : if user don't want to modify the PropSeg time lenght value.
+ *          - 0x00 to 0x07 : PropSeg time length values, actual value will be (PropSeg bit values+1)Tq.
+ * @param uint8_t Read tells whether to read the PropSeg or not.
+ *          - 0 : don't read PropSeg.
+ *          - 1 : read PropSeg.
+ * @retval uint8_t tells the value of PropSeg if Read is 1 else returns 0xFF, EINVALMODE if not in configuration mode.
+ */
+uint8_t CAN_ConfigurePropSeg(uint8_t set_PropSeg,uint8_t Read);
+
+/**
+ * @brief Configures the PS1, i.e. gets and sets PS1 time length value depending upon the passed arguments.
+ *          The actual value of PS1 will be value denoted by PS1 bits + 1 with units of Tq (Time Quanta of CAN communication), this is because the PS1 must be atleast of size 1Tq.
+ * @param uint8_t set_PS1 passes the PS1 value that has to be set.
+ *          - 0xFF : if user don't want to modify the PS1 time length value.
+ *          - 0x00 to 0x07 : PS1 time length values, actual value will be (PS1 bit values+1)Tq.
+ * @param uint8_t Read tells whether to read the PS1 or not.
+ *          - 0 : don't read PS1.
+ *          - 1 : read PS1.
+ * @retval uint8_t tells the value of PS1 if Read is 1 else returns 0xFF, EINVALMODE if not in configuration mode.
+ */
+uint8_t CAN_ConfigurePS1(uint8_t set_PS1,uint8_t Read);
+
+/**
+ * @brief Configures the PS2, i.e. gets and sets PS2 time length value depending upon the passed arguments.
+ *          The actual value of PS2 will be value denoted by PS2 bits + 1 with units of Tq (Time Quanta of CAN communication), minimum value of PS2 time length is 2Tq, thus set_PS2 must be atleast 1 (0x00 is invalid configuration)
+ * @param uint8_t set_PS2 passes the PS2 value that has to be set.
+ *          - 0xFF : if user don't want to modify the PS2 time length value.
+ *          - 0x01 to 0x07 : PS2 time length values, actual value will be (PS2 bit values+1)Tq.
+ * @param uint8_t Read tells whether to read the PS2 or not.
+ *          - 0 : don't read PS2.
+ *          - 1 : read PS2.
+ * @retval uint8_t tells the value of PS2 if Read is 1 else returns 0xFF, EINVALMODE if not in configuration mode.
+ */
+uint8_t CAN_ConfigurePS2(uint8_t set_PS2,uint8_t Read);
+
+/**
+ * @brief Gets the baudrate at which the CAN system is communicating.
+ * @param uint32_t* passes address of the variable where the baudrate will be copied.
+ * @retval uint8_t tells whether the baud rate retrieval is successful or not, 0 for success , EINVALMODE for invalid mode.
+ */
+uint8_t CAN_GetBaudRate(uint32_t* baudrate);
+
+/**
+ * @brief Sets specific baud rate for the subsequent communication over the CAN bus.
+ *          As explained above at the begining of " CAN BIT TIMING CONFIGURATION AND SYNCHRONIZATION " section, the baudrate depends over several variables which includes BV_brp, BV_propseg, BV_ps1, BV_ps2 and F_OSC.
+ *          So, to set a specific baudrate for the device, one need to set all of those variables to specific allowed values, the baudrate follows the mathematical relation : 
+ *          
+ *          baudrate(F_OSC, BV_brp, BV_propseg, BV_ps1, BV_ps2) = F_OSC/(2*(1+BV_brp)*(4+BV_propseg+BV_ps1+BV_ps2))
+ *      
+ *          CAN_SetBaudRate() assumes the F_OSC variable as OSC_FREQ macro declared in /Inc/Pin_connection.h , rest of all have to be passed by the user.
+ *          Since the library boots up the device with specific configurations of configuration registers as explained above, one can relate the variables value for their own needs with respect to what this library sets during bootup.
+ *          
+ * @param uint8_t BV_brp passes the value of the BRP segment, between 0x00-0x063
+ * @param uint8_t BV_propseg passes the value of the propseg segment, between 0x00-0x07
+ * @param uint8_t BV_ps1 passes the value of the PS1 segment, between 0x00-0x07
+ * @param uint8_t BV_ps2 passes the value of the PS2 segment, between 0x00-0x07
+ * @retval uint8_t tells whether the new baudrate has been set or not, return 0 on success and EINVALMODE if not in configuration mode.
+ */
+uint8_t CAN_SetBaudRate(uint8_t BV_brp, uint8_t BV_propseg, uint8_t BV_ps1, uint8_t BV_ps2);
+
+/**
+ * @brief Enables and disables triple sampling for the bits by modifying the SAM bit of CNF2
+ * @param uint8_t set_TS_bit tells whether to set the SAM bit to 0 or 1, passing 0 means setting the bit to 0 and passing 1 means setting it to 1.
+ * @retval void
+ */
+void CAN_ConfigureTripleSampling(uint8_t set_TS_bit);
+
+/**
+ * @brief Enables and disables BTLMODE i.e. if set to 0, BV_ps2 is set automatically equals to BV_ps1 and if set to 1, BV_ps2 value will be taken as bit value of PS2 segment, i.e. user can program PS2 independently of PS1,
+ *        This can be useful while adjusting the sampling point and baudrate.
+ * @param uint8_t set_BTLMODE_bit tells whether to set the BTLMODE bit of CNF2 register to 0 or 1, passing 0 sets it to 0 and passing 1 sets it to 1.
+ * @retval void
+ */
+void CAN_ConfigureBTLMODE(uint8_t set_BTLMODE_bit);
+
+/**
+ * @brief Enables and disables Wake up mode by setting WAKFIL bit of CNF3 register.
+ * @param uint8_t set_WAKFIL_bit tells whether to set the WAKFIL bit to 0 or 1, passing 0 sets it to 0 and passing 1 sets it to 1.
+ * @retval void
+ */
+void CAN_ConfigureWakeUp(uint8_t set_WAKFIL_bit);
+
+/**
+ * @brief Retrieves the value of TEC and REC register which can be used for identifying the error state of the device.
+ * @param uint8_t TEC_or_REC tells whether to read REC or TEC, 0 means reading TEC and 1 means reading REC register.
+ * @retval uint8_t tells the value of REC/TEC register depending upon the argument TEC_or_REC. 
+ */
+uint8_t CAN_Get_TEC_REC(uint8_t TEC_or_REC);
+
+/**
+ * @brief Sets specific values for TEC/REC registers.
+ * @param uint8_t TEC_or_REC tells whether to write to TEC or REC register.
+ * @param uint8_t val passes the value to be set into TEC/REC register.
+ * @retval void
+ */
+void CAN_Set_TEC_REC(uint8_t TEC_or_REC, uint8_t val);
+
 
 /**
  * @brief 
 
+    adjust sampling point position .
 
-
-	FILTER AND MASK MODIFICATION.
 	CONFIG MODE REGISTER MODIFICATION.
-	'EFLG' REGISTER MODIFICATION.
+	'EFLG' REGISTER MODIFICATION, TEC/REC regs
 
 */
 
