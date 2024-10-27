@@ -320,6 +320,8 @@ uint8_t CAN_SwitchMode(mode_switch* switch_info){
 	CAN_WriteRegister(TX0,&Register);
 	CAN_WriteRegister(TX1,&Register);
 	CAN_WriteRegister(TX2,&Register);
+    
+    Register=0x60;
 
 	CAN_WriteRegister(RX1,&Register);
 	CAN_WriteRegister(RX0,&Register);
@@ -690,7 +692,7 @@ uint8_t CAN_GetRTR(uint8_t* mXBn){
 		/* RTR bit is set. */
 			return 1;
 		}else{
-		/* RTR bit in not set. */
+		/* RTR bit is not set. */
 			return 0;
 		}
 		
@@ -1172,9 +1174,9 @@ uint8_t CAN_SetBaudRate(uint8_t BV_brp, uint8_t BV_propseg, uint8_t BV_ps1, uint
 /**
  * @brief Enables and disables triple sampling for the bits by modifying the SAM bit of CNF2
  * @param uint8_t set_TS_bit tells whether to set the SAM bit to 0 or 1, passing 0 means setting the bit to 0 and passing 1 means setting it to 1.
- * @retval void
+ * @retval 0 on success and EINVALMODE if not in configuration mode.
  */
-void CAN_ConfigureTripleSampling(uint8_t set_TS_bit){
+uint8_t CAN_ConfigureTripleSampling(uint8_t set_TS_bit){
     uint8_t Register=0;
     CAN_ReadRegister(_CANCTRL,&Register);
     if(((Register>>5)&(0x07))!=(0x04)){
@@ -1184,15 +1186,16 @@ void CAN_ConfigureTripleSampling(uint8_t set_TS_bit){
     Register=set_TS_bit;
     uint8_t mask=0x80;
     CAN_BitModify(_CNF2,&mask,set_TS_bit); 
+    return 0;
 }
 
 /**
  * @brief Enables and disables BTLMODE i.e. if set to 0, BV_ps2 is set automatically equals to BV_ps1 and if set to 1, BV_ps2 value will be taken as bit value of PS2 segment, i.e. user can program PS2 independently of PS1,
  *        This can be useful while adjusting the sampling point and baudrate.
  * @param uint8_t set_BTLMODE_bit tells whether to set the BTLMODE bit of CNF2 register to 0 or 1, passing 0 sets it to 0 and passing 1 sets it to 1.
- * @retval void
+ * @retval 0 on success and EINVALMODE if not in configuration mode.
  */
-void CAN_ConfigureBTLMODE(uint8_t set_BTLMODE_bit){
+uint8_t CAN_ConfigureBTLMODE(uint8_t set_BTLMODE_bit){
     uint8_t Register=0;
     CAN_ReadRegister(_CANCTRL,&Register);
     if(((Register>>5)&(0x07))!=(0x04)){
@@ -1207,9 +1210,9 @@ void CAN_ConfigureBTLMODE(uint8_t set_BTLMODE_bit){
 /**
  * @brief Enables and disables Wake up mode by setting WAKFIL bit of CNF3 register.
  * @param uint8_t set_WAKFIL_bit tells whether to set the WAKFIL bit to 0 or 1, passing 0 sets it to 0 and passing 1 sets it to 1.
- * @retval void
+ * @retval 0 on success and EINVALMODE if not in configuration mode.
  */
-void CAN_ConfigureWakeUp(uint8_t set_WAKFIL_bit){
+uint8_t CAN_ConfigureWakeUp(uint8_t set_WAKFIL_bit){
     uint8_t Register=0;
     CAN_ReadRegister(_CANCTRL,&Register);
     if(((Register>>5)&(0x07))!=(0x04)){
@@ -1237,18 +1240,43 @@ uint8_t CAN_Get_TEC_REC(uint8_t TEC_or_REC){
 }
 
 /**
- * @brief Sets specific values for TEC/REC registers.
- * @param uint8_t TEC_or_REC tells whether to write to TEC or REC register, 0 for writing to TEC and 1 for writing to REC.
- * @param uint8_t val passes the value to be set into TEC/REC register.
+ * @brief Configures the SOF bit of CNF3 register, used to put CLKOUT pin into two different modes, 1.) putting CLKOUT pin in SOF mode in which whenever the SOF is observed on bus by the node, it will generate 
+ *        signals on this pin, its used for synchronization with external devices. 2.) putting CLKOUT in a mode where it emits the frequency to drive the peripherals. marking the bit 0 means in second mode, while 
+ *        marking the bit 1 means in SOF mode, this bit is only considered if the CLKEN bit in CANCTRL register is set to 1, else this bit not be considered.
+ * @param uint8_t set_or_unset tell whether to set the SOF bit 0 or 1, passing 0 means setting the bit to 0 and passing 1 does the opposite.
+ * @retval 0 on success and EINVALMODE if not in configuration mode.
+ */
+uint8_t CAN_ConfigureSOF_CLKOUT(uint8_t set_or_unset){
+    uint8_t Register=0;
+    CAN_ReadRegister(_CANCTRL,&Register);
+    if(((Register>>5)&(0x07))!=(0x04)){
+       return EINVALMODE; 
+    }
+    Register=set_or_unset;
+    uint8_t mask=0x80;
+    CAN_BitModify(_CNF3,&mask,&Register);
+    return 0; 
+}
+
+/**
+ * @brief Retrieves the value of EFLG register.
+ * @param uint8_t* eflg_val passes the address of the variable where the EFLG register value will be stored.
  * @retval void
  */
-void CAN_Set_TEC_REC(uint8_t TEC_or_REC, uint8_t val){
-    uint8_t Register=val;
-    if(TEC_or_REC==0){
-        CAN_WriteRegister(TEC,&Register);
-    }else{
-        CAN_WriteRegister(REC,&Register);
-    }
+void CAN_GetEFLG(uint8_t eflg_val){
+    uint8_t CAN_ReadRegister(EFLG,&eflg_val);
 }
+
+/**
+ * @brief Sets the RX0OVR and RX1OVR bits, other bits are read only.
+ * @param uint8_t RXnOVR_val passes the value for those two bits. thus it can have the values 0x00, 0x01, 0x02, 0x03.
+ * @retval void
+ */
+void CAN_SetEFLG(uint8_t RXnOVR_val){
+    uint8_t mask=0xC0;
+    uint8_t Register=RXnOVR_val;
+    CAN_BitModify(EFLG,&mask,&Register);
+}
+ 
 
 
