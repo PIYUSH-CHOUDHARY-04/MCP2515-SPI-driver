@@ -31,7 +31,7 @@
 <p>NOTE01 : The SPI structure 'SPI_HandleTypeDef' should be initialized with name 'hspi1', 'hspi1' is used by default in this entire library for SPI communication.<p>
 <p>NOTE02 : This library is written for the "Little Endian" architecture.<p>
 
-<p> MCP2515 CAN API is partitioned into two parts : CAN IO API and CAN Config API<p>
+<p> MCP2515 CAN API is partitioned into a stack of lower to higher level routines.<p>
 
 <table>
     <tr>
