@@ -214,7 +214,7 @@
 
 /**
  * @defgroup INTERRUPT_MACROS interrupt_macros
- * @brief Macros representing the identifier vaues for each interrupt.
+ * @brief Macros representing the identifier values for each interrupt.
  *        ORing of these macros can be done to represent more than just one interrupt.
  * @{
  */
@@ -227,6 +227,27 @@
 #define INT_TX0IE (uint8_t)0x004
 #define INT_RX1IE (uint8_t)0x002
 #define INT_RX0IE (uint8_t)0x001
+
+/**
+ * @}
+ */
+
+
+/**
+ * @defgroup EFLG_INTERRUPT_MACROS eflg_interrupt_macros
+ * @brief Macros representing the identifier values for the EFLG register.
+ *        ORing of the macro is allowed.
+ * @{
+ */
+
+#define EFLG_RX1OVR     (uint8_t)0x080
+#define EFLG_RX2OVR     (uint8_t)0x040
+#define EFLG_TXB0       (uint8_t)0x020
+#define EFLG_TXEP       (uint8_t)0x010
+#define EFLG_RXEP       (uint8_t)0x008
+#define EFLG_TXWAR      (uint8_t)0x004
+#define EFLG_RXWAR      (uint8_t)0x002
+#define EFLG_EWARN      (uint8_t)0x001
 
 /**
  * @}
@@ -248,27 +269,6 @@
  * @}
  */
 
-/**
- * @defgroup MCP2515_BAUD_RATE mcp2515_baud_rate
- * @brief Macros for setting the Standard Baud rate for the CAN communication.
- * @{
- */
-
-#define BR_100KBPS 0x00186A0 /*!< Baud rate 100 kilobits per second */
-#define BR_200KBPS 0x0030D40 /*!< Baud rate 200 kilobits per second */
-#define BR_300KBPS 0x00493E0 /*!< Baud rate 300 kilobits per second */
-#define BR_400KBPS 0x0061A80 /*!< Baud rate 400 kilobits per second */
-#define BR_500KBPS 0x007A120 /*!< Baud rate 500 kilobits per second */
-#define BR_600KBPS 0x00927C0 /*!< Baud rate 600 kilobits per second */
-#define BR_700KBPS 0x00AAE60 /*!< Baud rate 700 kilobits per second */
-#define BR_800KBPS 0x00C3500 /*!< Baud rate 800 kilobits per second */
-#define BR_900KBPS 0x00DBBA0 /*!< Baud rate 900 kilobits per second */
-#define BR_1MBPS   0x00F4240 /*!< Baud rate 1 megabits per second   */
-
-
-/**
- * @}
- */
 
 
 

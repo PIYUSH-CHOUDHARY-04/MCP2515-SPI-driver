@@ -13,9 +13,18 @@
  * 			MCP2515 standalone CAN controller with SPI interface's CAN API Prototypes.
  */
 
-
+/**
+ * @defgroup HAL_HEADER_INCLUSION hal_header_inclusion
+ * @brief This inclusion section is modifiable, do appropriate inclusion of the SPI and GPIO header files of your specific microprocessor.
+ * @{
+ */
 #include "HAL_SPI.h"
 #include "HAL_GPIO.h"
+
+/**
+ * @}
+ */
+
 
 #include "MCP2515.h"
 #include "Pin_connection.h"
@@ -524,30 +533,36 @@ void CAN_ConfigureBTLMODE(uint8_t set_BTLMODE_bit);
 void CAN_ConfigureWakeUp(uint8_t set_WAKFIL_bit);
 
 /**
- * @brief Retrieves the value of TEC and REC register which can be used for identifying the error state of the device.
+ * @brief Retrieves the value of TEC and REC register which can be used for identifying the error state of the device, for clearing these register, device reset is necessary.
  * @param uint8_t TEC_or_REC tells whether to read REC or TEC, 0 means reading TEC and 1 means reading REC register.
  * @retval uint8_t tells the value of REC/TEC register depending upon the argument TEC_or_REC. 
  */
 uint8_t CAN_Get_TEC_REC(uint8_t TEC_or_REC);
 
 /**
- * @brief Sets specific values for TEC/REC registers.
- * @param uint8_t TEC_or_REC tells whether to write to TEC or REC register.
- * @param uint8_t val passes the value to be set into TEC/REC register.
+ * @brief Configures the SOF bit of CNF3 register, used to put CLKOUT pin into two different modes, 1.) putting CLKOUT pin in SOF mode in which whenever the SOF is observed on bus by the node, it will generate 
+ *        signals on this pin, its used for synchronization with external devices. 2.) putting CLKOUT in a mode where it emits the frequency to drive the peripherals. marking the bit 0 means in second mode, while 
+ *        marking the bit 1 means in SOF mode, this bit is only considered if the CLKEN bit in CANCTRL register is set to 1, else this bit not be considered.
+ * @param uint8_t set_or_unset tell whether to set the SOF bit 0 or 1, passing 0 means setting the bit to 0 and passing 1 does the opposite.
  * @retval void
  */
-void CAN_Set_TEC_REC(uint8_t TEC_or_REC, uint8_t val);
-
+void CAN_ConfigureSOF_CLKOUT(uint8_t set_or_unset);
+ 
+/**
+ * @brief Retrieves the value of EFLG register.
+ * @param uint8_t* eflg_val passes the address of the variable where the EFLG register value will be stored.
+ * @retval void
+ */
+void CAN_GetEFLG(uint8_t* eflg_val);
 
 /**
- * @brief 
+ * @brief Sets the RX0OVR and RX1OVR bits, other bits are read only.
+ * @param uint8_t RXnOVR_val passes the value for those two bits. thus it can have the values 0x00, 0x01, 0x02, 0x03.
+ * @retval void
+ */
+void CAN_SetEFLG(uint8_t RXnOVR_val);
 
-    adjust sampling point position .
 
-	CONFIG MODE REGISTER MODIFICATION.
-	'EFLG' REGISTER MODIFICATION, TEC/REC regs
-
-*/
 
 
 /*====================================================================<<IO APIS>>===================================================================*/
@@ -559,7 +574,7 @@ void CAN_Set_TEC_REC(uint8_t TEC_or_REC, uint8_t val);
  * @param void
  * @retval void
  */
-void CAN_init(void);
+void CAN_Init(void);
 
 /**
  * @brief Transmits the CAN frame 
@@ -573,7 +588,7 @@ uint8_t CAN_tx(can_t* frame);
  * @param cant_t* frame passes the pointer to the CAN frame into which frame will be copied.
  * @retval uint8_t is 0 for rx failure, is 1 for rx success.
  */
-uint8_t CAN_tx(can_t* frame);
+uint8_t CAN_rx(can_t* frame);
 
 
 #endif /* CAN_MCP2515_H */
