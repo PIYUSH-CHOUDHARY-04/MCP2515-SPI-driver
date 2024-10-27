@@ -5,7 +5,7 @@
     /MCP2515-SPI-driver
     |
     |---/docs
-    |    |--- MCP2515-Standalone-CAN-controller-User-manual.pdf
+    |    |--- MCP2515_Standalone_CAN_controller_with_SPI_Interface_Driver_Manual.pdf
     |    |
     |    |
     |
