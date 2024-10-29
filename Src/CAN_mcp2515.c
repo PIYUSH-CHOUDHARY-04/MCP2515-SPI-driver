@@ -1278,5 +1278,16 @@ void CAN_SetEFLG(uint8_t RXnOVR_val){
     CAN_BitModify(EFLG,&mask,&Register);
 }
  
+/*
+ *	CAN IO API and Initialization routine.
+ *
+*/
 
-
+/*
+ * @brief 
+ *
+*/
+void CAN_Init(){
+	
+	
+}
