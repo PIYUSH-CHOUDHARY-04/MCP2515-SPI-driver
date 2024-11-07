@@ -16,7 +16,7 @@
  *	 X_PORT is a pointer of type GPIO_TypeDef* and these structures and pointers are initialized by the HAL library for each port, and X_PIN is a uint32_t block which represents the specific pin of the  
  *	 corresponding port.
  *	 Look at the HAL_GPIO.h file, X_PIN macros are defined there.
- * 	 For no connection of the any of the following pin, both X_PORT and X_PIN can be set to 0x0000.
+ * 	 For no connection of the any of the following pin, both X_PORT and X_PIN can be set to NULL.
  */
 
 

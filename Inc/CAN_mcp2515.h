@@ -67,10 +67,10 @@ typedef struct{
  *		- 0x07 for enabling all TXnRTS pins. 
  *		ORing can be done to enable or disable mulitple TXnRTS pins in new mode.
  * @param uint8_t rxnbf will tell whether to enable or disable a specific RXnBF pin of MCP2515 in new mode or not irrespective of what their states are in current mode.
- *		- 0x12 for disabling both RXnBF pins in new mode (pin function is enabled for default thus programmer can choose to use it as digital input pin or for RTS.)
- *		- 0x13 for enabling RX0BF, disabling RX1BF.
- *		- 0x14 for enabling RX1BF, disabling RX0BF.
- *		- 0x15 for enabling both RXnBF pins.
+ *		- 0x0C for disabling both RXnBF pins in new mode (pin function is enabled for default thus programmer can choose to use it as digital input pin or for RTS.)
+ *		- 0x0D for enabling RX0BF, disabling RX1BF.
+ *		- 0x0E for enabling RX1BF, disabling RX0BF.
+ *		- 0x0F for enabling both RXnBF pins.
  */
 typedef struct {
 	uint8_t Switch2Mode;
@@ -244,7 +244,15 @@ void CAN_SetClkOutFreq(uint8_t prescalar);
  * @brief Transmits specified frame if TXB is not empty.
  * @param uint8_t* TXB passes the address of the TXB whose frame is attempted to be transmitted.
  * @retval uint8_t tells whether the transmission is successful or failed, returns 0 on success, returns ETXBFULL on failure.
+ */
 uint8_t CAN_Transmit(uint8_t* TXB);
+
+/**
+ * @brief Tells whether the transmission for specific buffer is successful or not.
+ * @param uint8_t* TXBn passes the address of the TXB whose transmission status has to be checked.
+ * @retval uint8_t tell whether the transmission is successful or not, return 0 on success and INT_MERRF on failure.
+ */
+uint8_t CAN_TXStatus(uint8_t* TXBn);
 
 /**
  * @brief Marks the specified RX buffer as read i.e. new frame cane be received into that specific RX buffer.

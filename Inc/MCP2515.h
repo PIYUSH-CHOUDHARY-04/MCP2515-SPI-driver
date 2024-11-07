@@ -232,6 +232,27 @@
  * @}
  */
 
+/**
+ * @defgroup INTERRUPT_FLAGS interrupt_flags
+ * @brief Macros representing the identifier values for each interrupt flag set in CANINTF register.
+ *        ORing of these macros can be done to represent more than just one interrupt flag.
+ * @{
+ */
+
+#define INT_MERRF (uint8_t)0x080
+#define INT_WAKIF (uint8_t)0x040
+#define INT_ERRIF (uint8_t)0x020
+#define INT_TX2IF (uint8_t)0x010
+#define INT_TX1IF (uint8_t)0x008
+#define INT_TX0IF (uint8_t)0x004
+#define INT_RX1IF (uint8_t)0x002
+#define INT_RX0IF (uint8_t)0x001
+
+/**
+ * @}
+ */
+
+
 
 /**
  * @defgroup EFLG_INTERRUPT_MACROS eflg_interrupt_macros
