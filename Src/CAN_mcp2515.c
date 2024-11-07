@@ -2,7 +2,7 @@
 
 /**
  * File: CAN_mcp2515.c
- * Description: This header file contains the definition of MCP2515 IO API.
+ * Description: This C file contains the definition of MCP2515 drivers.
  * Author: Piyush Choudhary
  * Date: October 3, 2024
  * Version: 1.0
@@ -28,8 +28,9 @@ void CAN_HardReset(void){
  * @retval void
  */
 void CAN_SoftReset(void){
+    uint8_t Register=RESET;
 	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET); 	/*!< lowering the ~CS pin to select the controller.  */
-	HAL_SPI_Transmit(&hspi1,RESET,1,HAL_MAX_DELAY);
+	HAL_SPI_Transmit(&hspi1,&Register,1,HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);  	/*!< rising the ~CS pin to de-select the controller. */
 }
 
@@ -40,7 +41,7 @@ void CAN_SoftReset(void){
  * @retval void
  */
 void CAN_WriteRegister(uint8_t* reg_addr, uint8_t* byte){
-	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET); 	/*!< lowering the ~CS pin to select the controller. 	*/
+	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET);     /*!< lowering the ~CS pin to select the controller. 	*/
 	const uint8_t cmd=WRITE;
 	HAL_SPI_Transmit(&hspi1,&cmd,1,HAL_MAX_DELAY);		/*!< transmitting the WRITE command 			*/
 	HAL_SPI_Transmit(&hspi1,reg_addr,1,HAL_MAX_DELAY);	/*!< transmitting the Register address 			*/
@@ -78,16 +79,19 @@ void CAN_BitModify( uint8_t* reg_addr, uint8_t* mask , uint8_t* data){
 	HAL_SPI_Transmit(&hspi1,mask,1,HAL_MAX_DELAY);
 	HAL_SPI_Transmit(&hspi1,data,1,HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
-
 }
 
 /**
  * @brief Writes the entire CAN frame to the specific TXB.
  * @param uint8_t* TXB passes the address of the specific TX buffer where we need to write the CAN frame.
  * @param can_t* can_frame passes the address of the frame (created by user program.)
+ * @param uint8_t FrameType tells about the frame type i.e. the frame is a standard frame or an extended frame, though this sets the frame type in the EXIDE bit, CAN_SetFrameType() can be used for doing 
+ *        the same, it don't sets the frame type as data/remote frame but instead only standard/extended frame.
+ *        - STANDARD_FRAME_TYPE for standard frame
+ *        - EXTENDED_FRAME_TYPE for extended frame type
  * @retval uint8_t tells whether the write operation is successful or not, on success returns 0 and on failure returns ETXBFULL or EINVALARG.
  */
-uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
+uint8_t CAN_WriteFrame(uint8_t* TXB, can_t* can_frame, uint8_t FrameType){
 	/* First check whether the specified TXB is empty or not */
 	uint8_t cmd=0;
 	uint8_t Register=0;
@@ -104,11 +108,7 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 	/* Since TXREQ bit is clear, we can write new frame to that TXB, now one need to clear TXBnCTRL and CANINTF Register's bits.  */
 	
 	CAN_WriteRegister(TXB,&Register);
-
 	Register=0x00;
-	
-	
-	
 	if(TXB==TX0){
 		mask=(0x04); /* ANDing to create a value to be written to _CANINTF Register to clear the flag bit for previously transmitted CAN frame. */
 		cmd=LOAD_TX0_IR;
@@ -148,13 +148,7 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 
 	/* Let's determine whether the CAN ID is standard or Extended ( SID or EID ) */
     /* Reformating the can_frame->CAN_ID attribute to reflect the CAN_ID in the format expected by the MCP2515 to write correctly into its TX buffers */
-
-    
-
-	/* Checking whether the 4th,3rd byte of user passed CAN array are 0 and lower 2 bits of 2nd byte are all 0 or not, if yes, its a standard frame. */
-    
-
-	if(((((uint8_t*)&(temp.CAN_ID))[2]==0x00) & (((uint8_t*)&(temp.CAN_ID))[3]==0x00) & (((((uint8_t*)&(temp.CAN_ID))[1])&(0x02))==0x00) )){
+	if(!STANDARD_FRAME_TYPE){ /* STANDARD_FRAME_TYPE is 0x00 thus !0x00 =: 1 i.e. following code for STANDARD_FRAME_TYPE */
 		/* Standard CAN frame. */
 
         ((uint8_t*)&(temp.CAN_ID))[0]=((uint8_t*)&(temp.CAN_ID))[2];
@@ -183,13 +177,10 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
 
 		/* CAN Frame is ready for being transmitted to MCP2515. */
 	}
-
-
 	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_RESET);
 	HAL_SPI_Transmit(&hspi1,&cmd,1,HAL_MAX_DELAY);
 	HAL_SPI_Transmit(&hspi1,(uint8_t*)(&can_frame),5+(can_frame->dlc),HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(nCS_PORT,nCS_PIN,GPIO_PIN_SET);
-
 	return 0;
 }
 
@@ -197,9 +188,10 @@ uint8_t CAN_WriteFrame(uint8_t* TXB,can_t* can_frame ){
  * @brief Reads the entire CAN frame from the CAN controller into a specified program buffer.
  * @param uint8_t* passes the address of the specific RX buffer from where we need to copy the CAN frame.
  * @param can_t* can_frame passes the address of the CAN frame structure in the program memory where the CAN frame will be copied.
- * @retval uint8_t tell whether the read operation is successful or not, on success returns 0 for standard frame and 1 for extended frame, and on failure returns ERXBEMPTY.
+ * @retval uint8_t tell whether the read operation is successful or not, on success returns a combination of Frame type macros, and on failure returns ERXBEMPTY, CAN_GetRTR() can be used to know 
+ *         whether the received frame is data/remote frame and so does for standard/extended frame type via CAN_GetFrameType().
  */
-uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
+uint8_t CAN_ReadFrame(uint8_t* RXB, can_t* can_frame){
 
 	/* first need to check whether the specific RX buffer has some frame or not. */
 	uint8_t cmd=0;
@@ -243,7 +235,7 @@ uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
 	
 	if((Register&(0x08))==0){
 		/* Frame is standard. */
-		/* RXBnEID0 and RXBnEID8 Registers will be empty.*/	
+		/* RXBnEID0 and RXBnEID8 Registers will be empty.*/	            /*  */
 			
 		((uint8_t*)&(can_frame->CAN_ID))[3]=((uint8_t*)&(can_frame->CAN_ID))[1];
         ((uint8_t*)&(can_frame->CAN_ID))[2]=((uint8_t*)&(can_frame->CAN_ID))[0];
@@ -280,7 +272,6 @@ uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
             return EXTENDED_FRAME_TYPE|DATA_FRAME_TYPE;
         }
 	}
-	
 }
 
 /**
@@ -291,7 +282,7 @@ uint8_t CAN_ReadFrame(uint8_t* RXB,can_t* can_frame){
 uint8_t CAN_SwitchMode(mode_switch* switch_info){
 
 	uint8_t Register=0;
-	uint8_t mask=0x07;
+	uint8_t mask=0x00;
 	uint8_t data=switch_info->clkout;
 
 
@@ -303,17 +294,22 @@ uint8_t CAN_SwitchMode(mode_switch* switch_info){
 		return 1;
 	}
 
+    /* Disabling all interrupts and clearing interrupt flags */
+	/* Just writing 0x00 to CANINTF and CANINTE registers */
+	CAN_WriteRegister(_CANINTE,&Register);
+	CAN_WriteRegister(_CANINTF,&Register);    
+
+
 	/* Modifying _CANCTRL Register. */
 
 	/* Clearing ABAT and OSM bits, writing CLKOUT bits. */
-
+    mask=0x07;
 	CAN_BitModify(_CANCTRL,&mask,&data);
 
+    /* temporarily storing the value of CANCTRL register. */
+    data=Register;
 	
-	/* Disabling all interrupts and clearing interrupt flags */
-	Register=0;
-	CAN_WriteRegister(_CANINTE,&Register);
-	CAN_WriteRegister(_CANINTF,&Register);
+	
 
 	/* Clearing previous frames data from TXnCTRL and RXnCTRL Registers. */
 	/* In default mode switch mode, all TXB priorities are set to lowest but still equal to each other. */
@@ -327,7 +323,11 @@ uint8_t CAN_SwitchMode(mode_switch* switch_info){
 	CAN_WriteRegister(RX0,&Register);
 
 	/* Configuring TXnRTS and RXnBF pins of MCP2515. */
-	CAN_WriteRegister(_TXRTSCTRL,&(switch_info->txnrts));
+    /* TXnRTS pins are only accessible in configuration mode.  */
+    Register=data;
+    if((Register&(0xE0))==(0x80)){
+	    CAN_WriteRegister(_TXRTSCTRL,&(switch_info->txnrts));
+    }
 	CAN_WriteRegister(_BFPCTRL,&(switch_info->rxnbf));
 
 	/* Writing the mode switch bits. */
@@ -398,7 +398,7 @@ uint8_t CAN_TriggerRTS_SPI(uint8_t* TXB){
 	CAN_ReadRegister(TXB,&Register);
 	if((Register&(0x08))==1){
 		/* ongoing transmission, TXREQ bit already set in TXBnCTRL Register. */
-		return ERXBFULL;
+		return ETXBFULL;
 	}
 	Register=0x08;
 	CAN_BitModify(TXB,&Register,&Register);
@@ -536,16 +536,27 @@ void CAN_SetClkOutFreq(uint8_t prescalar){
  * @retval uint8_t tells whether the transmission is successful or failed, returns 0 on success, returns ETXBFULL on failure.
  */
 uint8_t CAN_Transmit(uint8_t* TXB){
-	/* First we'll check whether the TXREQ bit of TXBnCTRL Register of specific TX buffer is already high or not, if high, TXB is already undergoing transmission. */
-	uint8_t Register=0;
-	CAN_ReadRegister(TXB,&Register);
-	if((Register&(0x08))==(0x08)){
-		/* TXREQ already set, TXBn undergoing transmission already. */
-		return ETXBFULL;
-	}
-	Register=0x08;
-	CAN_BitModify(TXB,&Register,&Register);
-	return 0;
+	if(nTX0RTS_PORT||nTX0RTS_PIN==NULL){
+        return CAN_TriggerRTS_SPI(TXB);
+    }else{
+        return CAN_TriggerRTS_PIN(TXB);
+    }
+}
+
+/**
+ * @brief Tells whether the transmission for specific buffer is successful or not.
+ * @param uint8_t* TXBn passes the address of the TXB whose transmission status has to be checked.
+ * @retval uint8_t tell whether the transmission is successful or not, return 0 on success and INT_MERRF on failure.
+ */
+uint8_t CAN_TXStatus(uint8_t* TXBn){
+    uint8_t Register=0;
+    CAN_ReadRegister(TXBn,&Register);
+    if((Register&(0x0F))==(0x0F)){
+        /* Transmission failed */
+        return INT_MERRF;    
+    }else{
+        return 0;    
+    }
 }
 
 /**
@@ -700,7 +711,7 @@ uint8_t CAN_GetRTR(uint8_t* mXBn){
 	/* Getting RTR bit for received RX frame. */
 		CAN_ReadRegister(mXBn+2,&Register);
        		CAN_ReadRegister(mXBn+5,&Register2);
-		if(((Register&(0x0F))==(0x0F)) | ((Register2&(0x40)) == (0x40))){
+		if( (((Register&(0x08))==(0x08)) && ((Register2&(0x40)) == (0x40))) || (((Register&(0x10))==(0x10))))){
 		/* RTR bit is set. */
 			return 1;
 		}else{
@@ -750,7 +761,8 @@ uint8_t CAN_GetFrameType(uint8_t* mXBn){
 
 /**
  * @brief Sets the frame type information i.e. sets the EXIDE bit of TXBnSIDL.
- * @param uint8_t* TXBn passes the address of the TX buffer for which the Frame type of specific TX must be set, CAN_WriteFrame() by default writes to this bit by identifying the frame type depending on the CAN ID structure.
+ * @param uint8_t* TXBn passes the address of the TX buffer for which the Frame type of specific TX must be set, CAN_WriteFrame() by default writes to this bit by identifying the frame type depending on the CAN ID  
+ *        structure.
  * @param uint8_t exide_val pass the information whether to set exide bit to 0 or 1, if exide_val=0, exide bit is set to 0 i.e. normal frame type, and if exide_val=1, frame type is extended.
  * @retval void
  */
@@ -1278,16 +1290,135 @@ void CAN_SetEFLG(uint8_t RXnOVR_val){
     CAN_BitModify(EFLG,&mask,&Register);
 }
  
-/*
- *	CAN IO API and Initialization routine.
- *
-*/
 
 /*
- * @brief 
+ * CAN IO API and Initialization routine.
  *
-*/
-void CAN_Init(){
-	
-	
+ */
+
+/**
+ * @brief Initializes the MCP2515 device , configures the device into the normal mode from configuration mode with appropriate settings of each registers. 
+ * @param void
+ * @retval void
+ */
+void CAN_Init(void){
+    /* Performing reset either hard or soft, soft in case hard reset is not possible, may be due to not connecting the ~RESET pin of MCP2515. */
+    if((nRESET_PORT || nRESET_PIN)==NULL){
+        CAN_SoftReset();    
+    }else{
+        CAN_HardReset();
+    }
+    mode_switch mode;
+    mode.Switch2Mode=0x00;
+    mode.clkout=0x04;
+    mode.txnrts=0x07;
+    mode.rxnbf=0x0F;
+
+    /* CAN_SwitchMode() routine will take care of disabling all interrupts and clears flags, clears all TXBnCTRL registers, setting  RXBnCTRL registers with 0b01100000 value to ensure reception of all frames.   
+       and since in new mode, by default all masks and filters has to be disabled, these will be disabled in the initialization routine./
+    
+    
+    
+    /* By default, disabling all the masks and filters. */
+    data=0x00;
+    for(int i=0;i<12;i++){
+        CAN_WriteRegister(RXF0SIDH+i,&data);
+        CAN_WriteRegister(RXF3SIDH+i,&data);
+    }
+    
+    for(int i=0;i<8;i++){
+        CAN_WriteRegister(RXM0SIDH+i,&data);
+    }
+    
+    /* Now clearing all TXB registers. */
+    
+    for(int i=0;i<;i++){
+        CAN_WriteRegister(TXB0SIDH,&data);
+        CAN_WriteRegister(TXB1SIDH,&data);
+        CAN_WriteRegister(TXB2SIDH,&data);    
+    }
+    
+    /* Clearing EFLG register. */
+    CAN_WriteRegister(_EFLG,&data);
+    CAN_SwitchMode(&mode);
+    /* Need to enable the interrupts after transition to normal mode. */
+    /* mode switching by default turns off the interrupts thus one need to enable them again, enabling all interrupts. */
+    uint8_t data=0xFF;
+    CAN_WriteRegister(_CANINTE,&data); /* This will be done in CAN_SwitchMode() as well */
+    
 }
+
+/**
+ * @brief Sends a CAN frame, this routines only write the given CAN frame and triggers its transmission, thus returns after writing to TXREQ bit, it don't explicitly checks whether the frame has been transmitted
+ *        successfully or not
+ * @param can_t* frame passes the address of the frame structure where the frame is loaded to be sent
+ * @retval tells whether the frame transmission has been triggered or not by writing the frame to an empty TXB. returns 0 on success and ETXBFULL if non of the TXB is empty i.e. all 3 have ongoing transmission.
+ */
+uint8_t CAN_tx(can_t* frame, uint8_t FrameType){
+    /* There are 3 transmit buffers, thus we'll check in a priority order from 1->2->3 for the TXB availability and thus write the frame their and trigger the frame transmission.' */ 
+    if(CAN_WriteFrame(TXB0,frame)!=ETXBFULL){
+        /* Triggering transmission.  */
+        if(nTX0RTS_PORT||nTX0RTS_PIN ==NULL){
+            CAN_Transmit(TXB0);
+        }else{
+            HAL_GPIO_WritePin(nTX0RTS_PORT,nTX0RTS_PIN,GPIO_PIN_RESET); 
+            HAL_Delay(10);
+            HAL_GPIO_WritePin(nTX0RTS_PORT,nTX0RTS_PIN,GPIO_PIN_SET);    
+        }
+        /* Need to write frame type as well i.e. standard/extended and data/remote frame */
+        return 0;
+    }else if(CAN_WriteFrame(TXB1,frame)!=ETXBFULL){
+        if(CAN_WriteFrame(TXB1,frame)!=ETXBFULL){
+            CAN_Transmit(TXB1);    
+        }else{
+            HAL_GPIO_WritePin(nTX1RTS_PORT,nTX0RTS_PIN,GPIO_PIN_RESET); 
+            HAL_Delay(10);
+            HAL_GPIO_WritePin(nTX1RTS_PORT,nTX0RTS_PIN,GPIO_PIN_SET);
+        }
+        return 0;
+    }else if(CAN_WriteFrame(TXB2,frame)!=ETXBFULL){
+        if(CAN_WriteFrame(TXB2,frame)!=ETXBFULL){
+            CAN_Transmit(TXB2);
+        }else{
+            HAL_GPIO_WritePin(nTX2RTS_PORT,nTX0RTS_PIN,GPIO_PIN_RESET); 
+            HAL_Delay(10);
+            HAL_GPIO_WritePin(nTX2RTS_PORT,nTX0RTS_PIN,GPIO_PIN_SET);
+        }
+        return 0;
+    }else{
+        return ETXBFULL;
+    }
+}
+
+/**
+ * @brief Receives a CAN frame i.e. copies the received CAN frame from the RXBn, this routine will only copy if the frame reception interrupt is pending and thus will clear the interrupt, i.e. once this 
+ *        routine is called, the underlying RXB will be freed up to receive new upcoming frame depending upon the configuration in RXBnCTRL registers.
+ * @param can_t* frame passes the address of the frame where the received frame has to be copied.
+ * @retval tells whether the frame reception is successful or not, returns 0 on success and ERXBEMPTY on failure.
+ */
+uint8_t CAN_rx(can_t* frame){
+    /* There are 2 receive buffers, thus we'll check in a priority order from 1->2 for the availability and thus read the frame from their and thus mark the frame as read by clearing the reception interrupt. */
+    uint8_t Register=0;
+    CAN_WriteRegister(,&Register);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
